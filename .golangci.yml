@@ -1,0 +1,22 @@
+version: "2"
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - errorlint   # errors.Is/As instead of == and type assertions
+    - gocritic
+    - misspell
+    - nolintlint  # no unexplained or unused //nolint
+    - revive      # exported names documented, naming conventions
+    - unconvert
+    - unparam
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters: [unparam]
+
+formatters:
+  enable:
+    - gofumpt

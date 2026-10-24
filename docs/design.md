@@ -73,7 +73,7 @@ sequenceDiagram
 ## 4. Commands
 
 ```
-exon setup [SOURCE] [STEP...] [flags]
+exon setup SOURCE [STEP...] [flags]
 exon version
 ```
 
@@ -84,13 +84,14 @@ exon version
 | `exon setup SOURCE apps configs` | Only these steps |
 | `exon setup SOURCE --dry-run` | Checks + plan, then stop. Nothing changes |
 | `exon setup SOURCE configs --dry-run --diff` | Plan plus line-by-line diffs of files that would be replaced |
-| `exon setup SOURCE --yes` | No step picker, no confirmation (questions still need answers, see §8) |
+| `exon setup SOURCE --yes` | No confirmation; questions take their defaults (adopt existing apps) |
 | `exon setup SOURCE --verbose` | Stream raw command output in addition to the UI |
 
 Steps always run in a fixed order, whatever order they are typed in:
 `apps → configs → git → ssh → extras → checklist`.
 
 Cloned repos live in `~/.local/share/exon/repos/<owner>/<repo>`; a rerun pulls the latest commit.
+A dry run with a GitHub source clones into a temporary folder that is deleted afterwards.
 
 ## 5. Config repo
 
@@ -166,7 +167,7 @@ Not shipped: `.zprofile` (written by Homebrew's instructions and OrbStack), gh c
 | Apple Silicon | Stop: "Apple Silicon only" |
 | Not running as root | Stop: Homebrew refuses root, files would be owned by root |
 | Homebrew on PATH | Stop, print the official install command |
-| `brew shellenv` line in `~/.zprofile` | Offer to add that one line |
+| `brew shellenv` line in `~/.zprofile` | Warn and print the line to add (exon doesn't edit `.zprofile`) |
 | Internet reachable | Stop before installing anything (skipped for `--dry-run` with a local source) |
 | Free disk space | Warn below 10 GB, let the user continue |
 | Real terminal | If not: plain output; questions need flags, otherwise fail clearly |
@@ -233,11 +234,12 @@ Prints the manual items from `exon.toml`. Changes nothing.
 `--dry-run` runs the pre-run checks and every step's plan, prints it, and stops.
 
 - Runs: read-only commands (`brew info`, `brew list`), file reads and comparisons.
-- Never runs: installs, writes, backups, clones, `brew update`, questions (shown as "would ask: …").
+- Never runs: installs, writes, backups, `brew update`, questions (questions appear in the plan as "will ask").
 - Exit codes: `0` plan fine, `1` plan has problems, `2` pre-run checks failed.
 
-Guaranteed by construction: steps can only change anything through `Env.Run` and `Env.FS`, which are
-replaced by recording versions in dry run. A test runs every step in dry-run mode and fails on any write.
+Guaranteed by construction: in a dry run `Apply` is never called, and `Prepare` always receives a
+read-only `Env.Run`/`Env.FS` whose changing methods fail with `sys.ErrReadOnly`. A step that tries to
+change something while planning fails its plan, and an engine test checks exactly that.
 
 ## 8. Failures
 
@@ -252,7 +254,9 @@ replaced by recording versions in dry run. A test runs every step in dry-run mod
 - Exit codes: `0` success, `1` finished with failures, `2` pre-run checks failed, `130` cancelled.
 - Retries only for network errors (3×, backoff). Everything else fails immediately.
 - Files are written atomically: temp file in the same folder, then rename.
-- Non-interactive runs: answers come from flags (`--git-name`, `--git-email`, `--ssh-onepassword`); a missing answer fails with the flag name to use.
+- Non-interactive runs: without a terminal, `--yes` is required and answers every question with its
+  default; otherwise exon stops with "run it in a terminal, or pass --yes". Per-question flags
+  (`--git-name`, `--git-email`) arrive with the `git`/`ssh` steps.
 
 ## 9. Output and UI
 
@@ -295,9 +299,10 @@ internal/
   cli/                     cobra commands: setup, version
   engine/                  order, failure rules, Ctrl+C, dry run
   step/
-    step.go                Step / Plan interfaces
-    registry.go            ordered list of steps (one line per step)
+    step.go                Step / Plan interfaces, Reporter
+    all/                   ordered list of steps (one line per step)
     apps/ configs/ git/ ssh/ extras/ checklist/
+    steptest/              test helpers: Env in temp folders, event recorder
   preflight/               pre-run checks
   source/                  resolve SOURCE: clone/pull repo or local folder
   config/                  load + validate exon.toml (line-numbered errors)
@@ -314,12 +319,12 @@ Everything is under `internal/`: no public Go API to keep stable.
 ### Interfaces
 
 ```go
-// Step is one setup step, e.g. "apps".
+// Step is one setup step, e.g. "apps". (internal/step)
 type Step interface {
     Name() string
     Summary() string
-    Requires() []Requirement
-    Prepare(ctx context.Context, env Env) (Plan, error) // read-only
+    Requires() []string                                // commands needed when applying
+    Prepare(ctx context.Context, env Env) (Plan, error) // gets a read-only Env
 }
 
 // Plan is what a step would do. Building and showing it changes nothing.
@@ -331,23 +336,25 @@ type Plan interface {
 
 // Env is everything a step may touch. Steps never call os/exec or write via os directly.
 type Env struct {
-    Run    sys.Runner
-    FS     sys.FS
-    Events events.Sink
-    Log    *slog.Logger
-    Config config.Section // this step's [section]
-    Repo   string         // config repo root
+    Run       sys.Runner     // Query (read) / Exec (change) / LookPath
+    FS        sys.FS         // reads + atomic writes
+    Report    *Reporter      // progress events: Start, Done, Skip, Fail, Notice
+    Log       *slog.Logger
+    Config    config.Section // this step's [section]
+    Repo      string         // config repo root
+    Home      string
+    BackupDir string         // this run's backup folder
 }
 
-// UserError is shown to the user; Err goes to the log.
-type UserError struct {
+// Error is shown to the user; Err goes to the log. (internal/usererr)
+type Error struct {
     Msg  string
     Hint string
     Err  error
 }
 ```
 
-Adding a feature: a new folder under `internal/step/`, one line in `registry.go`, its section in the
+Adding a feature: a new folder under `internal/step/`, one line in `step/all`, its section in the
 config docs. The engine, CLI and UI do not change.
 
 ### Dependencies
@@ -366,7 +373,7 @@ config docs. The engine, CLI and UI do not change.
 |---|---|
 | Format | `gofumpt` |
 | Lint | `golangci-lint`, required in CI |
-| Tests | `go test -race ./...`; every edge case in §6 and §8 has a test against the fake Runner/FS; plan output compared to saved expected output |
+| Tests | `go test -race ./...`; steps run against `sys/systest.Fake` (commands) and real temp folders (files); every edge case in §6 and §8 has a test |
 | CI | GitHub Actions, Apple Silicon macOS runner: lint, test, build, dry run of `examples/starter` |
 | Release | Tag `vX.Y.Z` → GoReleaser: arm64 binary, checksums, changelog, formula pushed to `bitbynik/homebrew-tap` |
 | Commits | Conventional Commits (`feat:`, `fix:`, `docs:`) |

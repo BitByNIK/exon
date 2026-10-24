@@ -1,0 +1,27 @@
+// Package all lists every step in the order they run.
+// Adding a step: create its package under internal/step and add it here.
+package all
+
+import (
+	"github.com/bitbynik/exon/internal/step"
+	"github.com/bitbynik/exon/internal/step/apps"
+	"github.com/bitbynik/exon/internal/step/configs"
+)
+
+// Steps returns all steps in run order.
+func Steps() []step.Step {
+	return []step.Step{
+		apps.New(),
+		configs.New(),
+	}
+}
+
+// Names returns the step names in run order.
+func Names() []string {
+	steps := Steps()
+	names := make([]string, len(steps))
+	for i, s := range steps {
+		names[i] = s.Name()
+	}
+	return names
+}
