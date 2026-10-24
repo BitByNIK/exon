@@ -1,0 +1,8 @@
+#!/bin/sh
+# Formats the staged Go and Markdown files (rules in lefthook.yml).
+# Commits are made in the dev container, where lefthook is installed. Anywhere
+# else this does nothing on purpose: it never falls back to other tools.
+if command -v lefthook >/dev/null 2>&1; then
+  exec lefthook run pre-commit "$@"
+fi
+echo "pre-commit: lefthook not found, formatting skipped (commit from the dev container)"

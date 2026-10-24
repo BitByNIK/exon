@@ -41,22 +41,64 @@ HOME=/tmp/exon-test ./bin/exon setup ~/Projects/exon-config configs
 When you commit, a git hook formats the Go and Markdown files you're committing and adds the
 formatted versions to the commit. Changes you haven't staged are left alone.
 
-The hook is set up automatically when the dev container is created (`lefthook.yml`).
-Commit from the container: on the Mac the formatters aren't installed, so the hook only prints
-`Can't find lefthook in PATH` and commits without formatting. `make lint` catches anything missed.
+The dev container turns the hook on when it's created (`.githooks/pre-commit`, rules in
+`lefthook.yml`). Commit from the container. Anywhere else the hook only prints that formatting
+was skipped; `make lint` and CI catch anything missed.
 
-## Commit messages
+## Branches and pull requests
 
-Start with a type, so release notes can be generated from them:
+| Branch | What it's for |
+|---|---|
+| `main` | Released code |
+| `dev` | Finished work, waiting for the next release. The default branch |
+| `issue-<N>` | Work on issue #N. One branch per issue |
 
-| Prefix | For |
+1. Pick or open an issue, say #12.
+2. Branch from `dev`: `git switch -c issue-12 dev`.
+3. Open a pull request into `dev`. Write `Closes #12` in the description.
+4. Merge once the checks are green.
+
+Every pull request is checked automatically:
+
+| Check | Rule |
+|---|---|
+| PR rules | Branch is named `issue-<N>`, the PR changes at most 10 files, the title starts with a type (below) |
+| Lint, test, build | Lint, tests and build pass on a Mac, and exon does a dry run there |
+
+`dev` is merged into `main` when it's time to release. In an emergency, a pull request from an
+`issue-<N>` branch can go straight into `main`.
+
+## PR titles and commit messages
+
+Start with a type. Pull requests are merged as one commit titled like the PR, and the release
+notes are built from these titles.
+
+| Type | For |
 |---|---|
 | `feat:` | Something new for users |
 | `fix:` | A bug fix |
 | `docs:` | Documentation only |
-| `build:`, `chore:` | Tooling, dependencies, housekeeping |
+| `build:`, `chore:`, `ci:`, `refactor:`, `test:`, `perf:` | Everything else |
 
 Example: `feat(apps): ask before replacing apps installed by hand`
+
+## Releasing
+
+After merging into `main`, tag the version and push the tag:
+
+```sh
+git switch main && git pull
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+GitHub then builds exon, publishes the release with a list of changes, and updates
+[homebrew-tap](https://github.com/BitByNIK/homebrew-tap), so `brew upgrade` picks it up.
+Pick the number from what changed: new features raise the middle number (`0.2.0` → `0.3.0`),
+bug fixes only raise the last one (`0.2.0` → `0.2.1`).
+
+Publishing needs the `HOMEBREW_TAP_TOKEN` secret in this repo: a GitHub token allowed to write
+to `BitByNIK/homebrew-tap` only.
 
 ## Coding agents
 

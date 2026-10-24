@@ -1,4 +1,5 @@
 # build output
+/.build/
 /dist/
 /bin/
 /exon

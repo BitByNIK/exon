@@ -32,6 +32,16 @@ Go CLI that sets up a freshly reset Mac from a config repo. How the code fits to
 - Docs describe only what exists today. Planned work belongs in GitHub issues, not in docs.
 - Everything is under `internal/`: no public API to keep stable.
 
+## Git workflow
+
+- Work on an issue, on a branch named `issue-<N>` created from `dev`. Commit inside the container.
+- One pull request per issue, into `dev`, changing at most 10 files. Split bigger work.
+- PR title starts with a type: `feat:`, `fix:`, `docs:`, `build:`, `chore:`, `ci:`, `refactor:`,
+  `test:` or `perf:`. Put `Closes #<N>` in the description.
+- CI (`.github/workflows/ci.yml`) enforces these and must be green before merging.
+- Never push to `main` or `dev` directly, and never create release tags: releases are the
+  maintainer's call (see CONTRIBUTING.md).
+
 ## Tests
 
 - Commands are faked with `internal/sys/systest.Fake`; files use real temp folders

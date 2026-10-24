@@ -1,0 +1,7 @@
+# Used by CI: exon does a dry run of this config on a real Mac.
+[apps]
+formulae = ["jq"]
+casks    = ["font-jetbrains-mono"]
+
+[configs]
+source = "home"

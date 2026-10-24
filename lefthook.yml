@@ -1,6 +1,10 @@
-# Git hooks, run by lefthook (installed in the dev container).
+# Git hooks, run by .githooks/pre-commit inside the dev container.
 # Before each commit, format the staged Go and Markdown files and add the
 # formatted versions to the commit.
+
+# The hook script lives in .githooks/; never let lefthook write its own.
+no_auto_install: true
+
 pre-commit:
   jobs:
     - name: go

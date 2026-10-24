@@ -1,0 +1,59 @@
+# Builds and publishes exon when a version tag (vX.Y.Z) is pushed.
+# Try it without publishing: goreleaser release --snapshot --clean
+version: 2
+
+project_name: exon
+
+builds:
+  - main: ./cmd/exon
+    binary: exon
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin]
+    goarch: [arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X github.com/bitbynik/exon/internal/cli.version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [LICENSE, README.md]
+
+checksum:
+  name_template: checksums.txt
+
+# The "what's new" list on each release, from commit messages.
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^docs", "^chore", "^build", "^ci", "^test"]
+  groups:
+    - title: New features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Other changes
+      order: 999
+
+# Publishes Casks/exon.rb to BitByNIK/homebrew-tap, so
+# `brew install bitbynik/tap/exon` installs the new version.
+homebrew_casks:
+  - name: exon
+    binaries: [exon]
+    homepage: https://github.com/BitByNIK/exon
+    description: Set up a freshly reset Mac in one command
+    repository:
+      owner: BitByNIK
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    hooks:
+      post:
+        # exon isn't signed by Apple (that needs a paid account). Without this,
+        # macOS blocks it as "damaged" because brew marks downloads as quarantined.
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/exon"]
+          end

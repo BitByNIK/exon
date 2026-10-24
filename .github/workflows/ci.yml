@@ -1,0 +1,87 @@
+name: CI
+
+# Checks every pull request into dev or main, and every push to them.
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-rules:
+    name: PR rules
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Branch name, size and title
+        env:
+          HEAD: ${{ github.head_ref }}
+          BASE: ${{ github.base_ref }}
+          TITLE: ${{ github.event.pull_request.title }}
+          FILES: ${{ github.event.pull_request.changed_files }}
+        run: |
+          fail=0
+          if [ "$HEAD" = dev ] && [ "$BASE" = main ]; then
+            echo "dev into main: branch name and size rules don't apply"
+          else
+            if ! printf '%s' "$HEAD" | grep -Eq '^issue-[0-9]+$'; then
+              echo "::error::Branch must be named issue-<N>, for the issue being worked on (it's '$HEAD')"
+              fail=1
+            fi
+            if [ "$FILES" -gt 10 ]; then
+              echo "::error::This PR changes $FILES files; the limit is 10. Split it into smaller PRs."
+              fail=1
+            fi
+          fi
+          if ! printf '%s' "$TITLE" | grep -Eq '^(feat|fix|docs|build|chore|refactor|test|ci|perf)(\([a-z0-9-]+\))?!?: .+'; then
+            echo "::error::PR title must start with feat:, fix:, docs:, build:, chore:, refactor:, test:, ci: or perf: (it's '$TITLE')"
+            fail=1
+          fi
+          exit $fail
+
+  check:
+    name: Lint, test, build
+    runs-on: macos-latest # Apple Silicon, like the Macs exon runs on
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Install rumdl (Markdown checker)
+        env:
+          RUMDL_VERSION: v0.3.0 # keep in sync with .devcontainer/Dockerfile
+        run: |
+          file="rumdl-${RUMDL_VERSION}-aarch64-apple-darwin.tar.gz"
+          url="https://github.com/rvben/rumdl/releases/download/${RUMDL_VERSION}/${file}"
+          curl -fsSLO "$url"
+          curl -fsSL "$url.sha256" | shasum -a 256 -c -
+          tar -xzf "$file" rumdl
+          sudo install -m 0755 rumdl /usr/local/bin/rumdl
+
+      - name: Lint Go
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0 # keep in sync with .devcontainer/Dockerfile
+
+      - name: Check Markdown
+        run: rumdl check .
+
+      - name: Test
+        run: make test
+
+      - name: Build
+        run: make build
+
+      - name: Run exon on this Mac (dry run)
+        run: |
+          ./bin/exon version
+          ./bin/exon setup ./testdata/smoke --dry-run
