@@ -16,11 +16,20 @@ import (
 
 // Question is one thing to ask. ID must be unique across all steps in a run;
 // prefix it with the step name ("apps.adopt.google-chrome").
+//
+// A question is multiple choice when Options is set, free text when Input is
+// set, and yes/no otherwise.
 type Question struct {
 	ID      string
 	Text    string
-	Options []string // choices; empty means a yes/no question
-	Default string   // one of Options, or "yes"/"no" for yes/no questions
+	Options []string // choices for a multiple-choice question
+	Input   bool     // the answer is typed text
+	// Default is one of Options, "yes"/"no" for a yes/no question, or the
+	// suggested text for an Input question (Enter keeps it).
+	Default string
+	// Validate checks a typed answer. Its error is shown and the question
+	// asked again. Optional; Input questions only.
+	Validate func(string) error
 }
 
 // Answers maps Question.ID to the chosen option ("yes"/"no" for yes/no questions).
@@ -73,7 +82,15 @@ func (t *Terminal) Confirm(ctx context.Context, text string, def bool) (bool, er
 func (t *Terminal) Ask(ctx context.Context, qs []Question) (Answers, error) {
 	ans := Answers{}
 	for _, q := range qs {
-		if len(q.Options) == 0 {
+		switch {
+		case q.Input:
+			text, err := t.input(ctx, q)
+			if err != nil {
+				return nil, err
+			}
+			ans[q.ID] = text
+			continue
+		case len(q.Options) == 0:
 			ok, err := t.Confirm(ctx, q.Text, q.Default == "yes")
 			if err != nil {
 				return nil, err
@@ -88,6 +105,36 @@ func (t *Terminal) Ask(ctx context.Context, qs []Question) (Answers, error) {
 		ans[q.ID] = choice
 	}
 	return ans, nil
+}
+
+// input asks for typed text. Enter keeps the default; an empty answer with no
+// default, or one Validate rejects, is asked again.
+func (t *Terminal) input(ctx context.Context, q Question) (string, error) {
+	for {
+		if q.Default != "" {
+			fmt.Fprintf(t.out, "%s [%s]: ", q.Text, q.Default)
+		} else {
+			fmt.Fprintf(t.out, "%s: ", q.Text)
+		}
+		line, err := t.readLine(ctx)
+		if err != nil {
+			return "", err
+		}
+		if line == "" {
+			line = q.Default
+		}
+		if line == "" {
+			fmt.Fprintln(t.out, "  Please type an answer.")
+			continue
+		}
+		if q.Validate != nil {
+			if err := q.Validate(line); err != nil {
+				fmt.Fprintf(t.out, "  %v\n", err)
+				continue
+			}
+		}
+		return line, nil
+	}
 }
 
 func (t *Terminal) choose(ctx context.Context, q Question) (string, error) {
