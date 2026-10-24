@@ -1,10 +1,9 @@
 {
   "name": "exon",
-  "image": "mcr.microsoft.com/devcontainers/go:2-1.27-trixie",
+  "build": { "dockerfile": "Dockerfile" },
   // Delve (dlv) needs ptrace to debug processes inside the container.
   "capAdd": ["SYS_PTRACE"],
   "securityOpt": ["seccomp=unconfined"],
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
     "zed": {
       "extensions": ["toml", "make"]

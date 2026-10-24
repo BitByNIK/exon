@@ -380,9 +380,10 @@ config docs. The engine, CLI and UI do not change.
 
 ### Development environment
 
-Development happens in the devcontainer (`.devcontainer/devcontainer.json`, tools installed by
-`.devcontainer/post-create.sh` at pinned versions), so the Mac needs no Go install. GoReleaser runs
-in CI only (GitHub Action), so its Go version requirement never blocks the container.
+Development happens in the devcontainer. `.devcontainer/Dockerfile` bakes the tools into the image
+at pinned versions (into `/go/bin`, replacing the base image's unpinned copies); the image is cached,
+so new containers start with every tool ready and the Mac needs no Go install. GoReleaser runs in CI
+only (GitHub Action), so its Go version requirement never blocks the container.
 
 | Tool | Used by |
 |---|---|
@@ -391,13 +392,13 @@ in CI only (GitHub Action), so its Go version requirement never blocks the conta
 | `golangci-lint-langserver` | Lint findings as editor/agent diagnostics |
 | `dlv` | Debugger (DAP). The container gets `SYS_PTRACE` + `seccomp=unconfined`, which delve needs |
 
-Coding agents running in the container (omp) read `.omp/`:
+Coding agents read these files when started from the repo root:
 
 | File | Purpose |
 |---|---|
-| `.omp/AGENTS.md` | Project context and rules, loaded into every session |
-| `.omp/lsp.json` | gopls with gofumpt; golangci-lint server as a linter (diagnostics only, never used for navigation or formatting) |
-| `.omp/config.yml` | Format on write, diagnostics after each edit |
+| `AGENTS.md` | Project context and rules. Root location is the cross-tool convention (omp, Codex, Cursor, Copilot…) |
+| `.omp/lsp.json` | omp: gopls with gofumpt; golangci-lint server as a linter (diagnostics only, never used for navigation or formatting) |
+| `.omp/config.yml` | omp: format on write, diagnostics after each edit |
 
 Delve needs no `.omp/dap.json`: omp's built-in `dlv` adapter is used once `dlv` is on `PATH`.
 
