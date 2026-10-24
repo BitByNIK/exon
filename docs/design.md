@@ -380,20 +380,36 @@ config docs. The engine, CLI and UI do not change.
 
 ### Development environment
 
-Development happens in the devcontainer (`.devcontainer/devcontainer.json`): Go, `gofumpt` and
-`golangci-lint` come from the container, so the Mac needs no Go install. GoReleaser runs in CI only
-(GitHub Action), so its Go version requirement never blocks the container.
+Development happens in the devcontainer (`.devcontainer/devcontainer.json`, tools installed by
+`.devcontainer/post-create.sh` at pinned versions), so the Mac needs no Go install. GoReleaser runs
+in CI only (GitHub Action), so its Go version requirement never blocks the container.
+
+| Tool | Used by |
+|---|---|
+| `gofumpt`, `golangci-lint` | `make fmt`, `make lint` |
+| `gopls` | Language server: navigation, diagnostics, formatting (gofumpt) |
+| `golangci-lint-langserver` | Lint findings as editor/agent diagnostics |
+| `dlv` | Debugger (DAP). The container gets `SYS_PTRACE` + `seccomp=unconfined`, which delve needs |
+
+Coding agents running in the container (omp) read `.omp/`:
+
+| File | Purpose |
+|---|---|
+| `.omp/AGENTS.md` | Project context and rules, loaded into every session |
+| `.omp/lsp.json` | gopls with gofumpt; golangci-lint server as a linter (diagnostics only, never used for navigation or formatting) |
+| `.omp/config.yml` | Format on write, diagnostics after each edit |
+
+Delve needs no `.omp/dap.json`: omp's built-in `dlv` adapter is used once `dlv` is on `PATH`.
 
 | Task | Where |
 |---|---|
-| Edit, `make test`, `make lint` | Container (Linux) |
+| Edit, `make test`, `make lint`, debugging tests | Container (Linux) |
 | `make build` → `bin/exon` (darwin/arm64, cgo off) | Container; the folder is shared with the Mac |
 | Run `bin/exon setup … --dry-run` or for real | Mac terminal |
 | End-to-end on a real Mac | CI macOS runner |
 
-Rule that keeps this working: macOS-only code (architecture, disk space, `/Applications` checks)
-lives in `_darwin.go` files behind small interfaces, with an `_other.go` fallback, so every
-package compiles and tests on Linux.
+Rule that keeps this working: macOS-specific checks (architecture, disk space, root) go through
+the `preflight.Host` interface, so every package compiles and tests on Linux.
 
 ## 12. Docs
 
