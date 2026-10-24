@@ -16,7 +16,7 @@ After that the configs belong to the user. exon does **not** sync, track or upda
 To change what the next reset gets, the user edits their config repo.
 
 The name is deliberately not tied to one feature: more steps can be added later
-(devcontainer support, Linux) without renaming.
+(e.g. devcontainer support) without renaming.
 
 ## 2. Scope
 
@@ -441,4 +441,4 @@ the `preflight.Host` interface, so every package compiles and tests on Linux.
 | v0.1 | Engine (plan, dry run, failure rules, events, log), pre-run checks, source resolution, plain renderer, `apps`, `configs` |
 | v0.2 | TUI renderer, `git`, `ssh`, `extras`, `checklist`, `--diff` |
 | v0.3 | Starter example, full docs, CI, GoReleaser + tap, first public release |
-| later | Devcontainer support, Linux |
+| later | Devcontainer support |
