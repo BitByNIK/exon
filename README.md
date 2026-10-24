@@ -21,7 +21,7 @@ Works on **Apple Silicon Macs** with **Homebrew** installed.
    ```sh
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
-2. Install exon (not published yet, see [Roadmap](#roadmap); for now [build it from source](CONTRIBUTING.md)):
+2. Install exon (not on Homebrew yet; for now [build it from source](CONTRIBUTING.md)):
    ```sh
    brew install bitbynik/tap/exon
    ```
@@ -38,18 +38,16 @@ New here? Read [Getting started](docs/getting-started.md).
 |---|---|
 | [Getting started](docs/getting-started.md) | From a fresh Mac to done, and how to make your config repo |
 | [Configuration](docs/configuration.md) | What goes in `exon.toml` and the `home/` folder |
-| [Steps](docs/steps.md) | What each step does and how it handles tricky cases |
+| [How it works](docs/how-it-works.md) | What exon does, in order, and how it handles tricky cases |
 | [Troubleshooting](docs/troubleshooting.md) | Logs, backups, errors, exit codes |
 | [Contributing](CONTRIBUTING.md) | Working on exon itself |
 
-## Roadmap
+## Coming soon
 
-| Version | What's in it |
-|---|---|
-| **0.1** (now) | Install apps, copy config files, dry run, backups |
-| next | Publish to Homebrew so `brew install bitbynik/tap/exon` works |
-| 0.2 | Git name and email, SSH hosts, tmux plugins, sign-in checklist, progress bars, `--diff` |
-| later | Devcontainer support |
+- Set your git name and email
+- Add SSH hosts
+- Install tmux plugins
+- A checklist of apps to sign in to
 
 ## License
 

@@ -27,9 +27,9 @@ Go CLI that sets up a freshly reset Mac from a config repo. How the code fits to
 - Steps report progress via `env.Report` (Start/Done/Skip/Fail/Notice), never by printing.
 - Errors shown to users are `usererr.New(msg, hint, cause)`. Anything else is logged, not shown.
 - A per-item failure is reported and the step continues; returning an error fails the whole step.
-- New step: follow "Adding a step" in `docs/architecture.md`, and document it in `docs/steps.md`
-  and `docs/configuration.md`.
-- Docs describe only what exists. Planned work goes in the README roadmap.
+- New step: follow "Adding a step" in `docs/architecture.md`, and document it in
+  `docs/how-it-works.md` and `docs/configuration.md`.
+- Docs describe only what exists. Planned work goes in the README's "Coming soon" list.
 - Everything is under `internal/`: no public API to keep stable.
 
 ## Tests

@@ -55,7 +55,7 @@ Don't put passwords, tokens or keys in it.
 
 ## Running only part of it
 
-Name the steps you want:
+Add `apps` or `configs` to do just that part:
 
 ```sh
 exon setup your-name/your-config configs   # only copy config files

@@ -77,6 +77,6 @@ Steps only touch the system through `step.Env`:
    Use `usererr.New(msg, hint, err)` for errors the user should read.
 5. Add it to `internal/step/all/all.go`, in the right place in the order.
 6. Test it: `systest.Fake` for commands, `steptest.Env` for files in temp folders.
-7. Document it in [steps.md](steps.md) and [configuration.md](configuration.md).
+7. Document it in [how-it-works.md](how-it-works.md) and [configuration.md](configuration.md).
 
 `internal/step/configs` is the simplest example to copy.

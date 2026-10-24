@@ -4,7 +4,7 @@ A config repo has two parts: `exon.toml` at the top, and the `home/` folder.
 
 ## `exon.toml`
 
-Each step has its own section. Leave a section out and that step has nothing to do.
+`[apps]` lists what to install, `[configs]` where your config files are. Leave one out and that part is skipped.
 A typo in a section or key name is an error, so mistakes don't go unnoticed.
 
 ### `[apps]`

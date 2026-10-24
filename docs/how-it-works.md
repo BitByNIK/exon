@@ -1,14 +1,14 @@
-# Steps
+# How it works
 
-exon runs in this order:
+When you run `exon setup`, it:
 
 1. **Checks** your Mac.
-2. **Plans** every step and shows you the plan. Nothing has changed yet.
-3. **Asks** `Apply these changes?`, then any questions the steps have.
-4. **Runs** the steps in order: `apps`, then `configs`.
+2. **Shows the plan**: everything it would change. Nothing has changed yet.
+3. **Asks** `Apply these changes?`, then any other questions.
+4. **Installs apps** (`apps`), then **copies config files** (`configs`).
 5. **Summarises** what was done, skipped or failed.
 
-If a step can't make a plan (for example a misspelled app name), exon stops before changing anything.
+If anything in the plan is wrong (for example a misspelled app name), exon stops before changing anything.
 
 ## Checks
 
