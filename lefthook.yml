@@ -1,0 +1,13 @@
+# Git hooks, run by lefthook (installed in the dev container).
+# Before each commit, format the staged Go and Markdown files and add the
+# formatted versions to the commit.
+pre-commit:
+  jobs:
+    - name: go
+      glob: "*.go"
+      run: gofumpt -w {staged_files}
+      stage_fixed: true
+    - name: markdown
+      glob: "*.md"
+      run: rumdl fmt {staged_files}
+      stage_fixed: true

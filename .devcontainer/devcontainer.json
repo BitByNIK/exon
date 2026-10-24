@@ -3,5 +3,7 @@
   "build": { "dockerfile": "Dockerfile" },
   // Delve (dlv) needs ptrace to debug processes inside the container.
   "capAdd": ["SYS_PTRACE"],
-  "securityOpt": ["seccomp=unconfined"]
+  "securityOpt": ["seccomp=unconfined"],
+  // Turn on the git hooks in lefthook.yml for this clone.
+  "postCreateCommand": "lefthook install"
 }

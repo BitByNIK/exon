@@ -14,8 +14,8 @@ Run these in the container:
 |---|---|
 | `make check` | Everything CI runs: lint, tests, build |
 | `make test` | Tests, with Go's race detector |
-| `make lint` | golangci-lint |
-| `make fmt` | Format all code (gofumpt) |
+| `make lint` | golangci-lint, and a Markdown check (rumdl) |
+| `make fmt` | Format all Go (gofumpt) and Markdown (rumdl) files |
 | `make build` | Build `bin/exon` for Apple Silicon Macs |
 
 exon only runs on a Mac, not in the container. After `make build`, run it from a Mac terminal:
@@ -35,6 +35,15 @@ HOME=/tmp/exon-test ./bin/exon setup ~/Projects/exon-config configs
 - Never run real `brew` or touch the real home folder in tests.
 - Fake commands with `internal/sys/systest.Fake`; use temp folders for files (`internal/step/steptest`).
 - Test what a user would notice: what gets planned, retried, skipped or reported, and exit codes.
+
+## Formatting on commit
+
+When you commit, a git hook formats the Go and Markdown files you're committing and adds the
+formatted versions to the commit. Changes you haven't staged are left alone.
+
+The hook is set up automatically when the dev container is created (`lefthook.yml`).
+Commit from the container: on the Mac the formatters aren't installed, so the hook only prints
+`Can't find lefthook in PATH` and commits without formatting. `make lint` catches anything missed.
 
 ## Commit messages
 

@@ -13,13 +13,15 @@ build:
 test:
 	CGO_ENABLED=1 go test -race ./...
 
-## lint: golangci-lint
+## lint: golangci-lint, and check Markdown formatting
 lint:
 	golangci-lint run ./...
+	rumdl check .
 
-## fmt: format all Go files
+## fmt: format all Go and Markdown files
 fmt:
 	gofumpt -w .
+	rumdl fmt .
 
 ## tidy: sync go.mod / go.sum
 tidy:

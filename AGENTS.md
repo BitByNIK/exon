@@ -16,8 +16,8 @@ Go CLI that sets up a freshly reset Mac from a config repo. How the code fits to
 | Everything CI runs | `make check` (lint, race tests, darwin build) |
 | Tests | `make test` (`go test -race ./...`, needs cgo) |
 | One package | `go test -race ./internal/step/apps/` |
-| Lint | `make lint` (golangci-lint v2, config `.golangci.yml`) |
-| Format | `make fmt` (gofumpt) |
+| Lint | `make lint` (golangci-lint v2 `.golangci.yml`; rumdl for Markdown, `.rumdl.toml`) |
+| Format | `make fmt` (gofumpt + rumdl). A pre-commit hook (lefthook) also formats staged files |
 
 ## Rules
 

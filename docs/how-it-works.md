@@ -27,6 +27,7 @@ If anything in the plan is wrong (for example a misspelled app name), exon stops
 Installs everything in `[apps]`.
 
 **Before installing anything**, it looks up every name:
+
 - A name Homebrew doesn't know, or an app Homebrew has disabled: exon stops, nothing is installed.
 - An app Homebrew plans to remove, or one that was renamed: a warning in the plan.
 - Already installed: skipped.

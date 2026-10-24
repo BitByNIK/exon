@@ -2,7 +2,7 @@
 
 Why exon works the way it does. Read this before proposing to change one of these.
 
-## Runs once, after a reset. No syncing.
+## Runs once, after a reset. No syncing
 
 exon sets a Mac up and then gets out of the way. It doesn't track your configs or sync them back.
 To change what the next reset gets, edit your config repo.

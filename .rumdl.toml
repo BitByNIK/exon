@@ -1,0 +1,4 @@
+# Markdown formatting and checks (rumdl). Defaults, except:
+[global]
+# No line length limit: GitHub doesn't care, and wrapped prose is harder to edit.
+disable = ["MD013"]

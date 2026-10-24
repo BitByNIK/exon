@@ -51,5 +51,6 @@ It mirrors your home folder. Every file in it is copied to the same place under 
 - Files under `.ssh/` are made private, because SSH refuses config files others can read.
 
 What not to put in it:
+
 - Passwords, tokens, keys, or files that contain them.
 - Files that apps rewrite with login data, like `~/.config/gh/hosts.yml`.
