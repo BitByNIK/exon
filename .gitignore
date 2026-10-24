@@ -1,0 +1,15 @@
+# build output
+/dist/
+/bin/
+/exon
+
+# test / coverage
+*.test
+*.out
+coverage.*
+
+# editors / OS
+.DS_Store
+.idea/
+.vscode/
+.zed/
