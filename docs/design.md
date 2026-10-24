@@ -371,6 +371,23 @@ config docs. The engine, CLI and UI do not change.
 | Release | Tag `vX.Y.Z` → GoReleaser: arm64 binary, checksums, changelog, formula pushed to `bitbynik/homebrew-tap` |
 | Commits | Conventional Commits (`feat:`, `fix:`, `docs:`) |
 
+### Development environment
+
+Development happens in the devcontainer (`.devcontainer/devcontainer.json`): Go, `gofumpt` and
+`golangci-lint` come from the container, so the Mac needs no Go install. GoReleaser runs in CI only
+(GitHub Action), so its Go version requirement never blocks the container.
+
+| Task | Where |
+|---|---|
+| Edit, `make test`, `make lint` | Container (Linux) |
+| `make build` → `bin/exon` (darwin/arm64, cgo off) | Container; the folder is shared with the Mac |
+| Run `bin/exon setup … --dry-run` or for real | Mac terminal |
+| End-to-end on a real Mac | CI macOS runner |
+
+Rule that keeps this working: macOS-only code (architecture, disk space, `/Applications` checks)
+lives in `_darwin.go` files behind small interfaces, with an `_other.go` fallback, so every
+package compiles and tests on Linux.
+
 ## 12. Docs
 
 | File | Content |

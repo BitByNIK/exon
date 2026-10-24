@@ -1,0 +1,10 @@
+{
+  "name": "exon",
+  "image": "mcr.microsoft.com/devcontainers/go:2-1.27-trixie",
+  "postCreateCommand": "go install mvdan.cc/gofumpt@v0.12.0 && go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0",
+  "customizations": {
+    "zed": {
+      "extensions": ["toml", "make"]
+    }
+  }
+}
