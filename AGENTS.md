@@ -29,7 +29,7 @@ Go CLI that sets up a freshly reset Mac from a config repo. How the code fits to
 - A per-item failure is reported and the step continues; returning an error fails the whole step.
 - New step: follow "Adding a step" in `docs/architecture.md`, and document it in
   `docs/how-it-works.md` and `docs/configuration.md`.
-- Docs describe only what exists. Planned work goes in the README's "Coming soon" list.
+- Docs describe only what exists today. Planned work belongs in GitHub issues, not in docs.
 - Everything is under `internal/`: no public API to keep stable.
 
 ## Tests

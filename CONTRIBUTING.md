@@ -68,8 +68,3 @@ and delve.
 
 - [Architecture](docs/architecture.md): how the code fits together, and how to add a step
 - [Decisions](docs/decisions.md): why things are the way they are
-
-## Releasing
-
-Not set up yet. Coming next: tagging `vX.Y.Z` will build exon, publish a GitHub release
-with notes from the commit messages, and update `brew install bitbynik/tap/exon`.

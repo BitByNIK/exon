@@ -47,13 +47,6 @@ New here? Read [Getting started](docs/getting-started.md).
 | [Troubleshooting](docs/troubleshooting.md) | Logs, backups, errors, exit codes |
 | [Contributing](CONTRIBUTING.md) | Working on exon itself |
 
-## Coming soon
-
-- Set your git name and email
-- Add SSH hosts
-- Install tmux plugins
-- A checklist of apps to sign in to
-
 ## License
 
 [MIT](LICENSE)
