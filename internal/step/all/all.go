@@ -6,6 +6,7 @@ import (
 	"github.com/bitbynik/exon/internal/step"
 	"github.com/bitbynik/exon/internal/step/apps"
 	"github.com/bitbynik/exon/internal/step/configs"
+	"github.com/bitbynik/exon/internal/step/git"
 )
 
 // Steps returns all steps in run order.
@@ -13,6 +14,7 @@ func Steps() []step.Step {
 	return []step.Step{
 		apps.New(),
 		configs.New(),
+		git.New(), // after configs: a replaced ~/.gitconfig then gets the name and email back
 	}
 }
 

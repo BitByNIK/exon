@@ -4,7 +4,8 @@ A config repo has two parts: `exon.toml` at the top, and the `home/` folder.
 
 ## `exon.toml`
 
-`[apps]` lists what to install, `[configs]` where your config files are. Leave one out and that part is skipped.
+`[apps]` lists what to install, `[configs]` where your config files are, `[git]` whether to set
+your git name and email. Leave one out and that part is skipped.
 A typo in a section or key name is an error, so mistakes don't go unnoticed.
 
 ### `[apps]`
@@ -35,6 +36,19 @@ source = "home"
 | Key | What it is | Default |
 |---|---|---|
 | `source` | The folder in your repo that holds your config files | `"home"` |
+
+### `[git]`
+
+```toml
+[git]
+set_name_and_email = true
+```
+
+| Key | What it is | Default |
+|---|---|---|
+| `set_name_and_email` | Ask for the name and email git puts on your commits | `false` |
+
+Your answers are saved on your Mac only, never in the config repo.
 
 ## The `home/` folder
 

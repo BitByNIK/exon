@@ -5,7 +5,7 @@ When you run `exon setup`, it:
 1. **Checks** your Mac.
 2. **Shows the plan**: everything it would change. Nothing has changed yet.
 3. **Asks** `Apply these changes?`, then any other questions.
-4. **Installs apps** (`apps`), then **copies config files** (`configs`).
+4. **Installs apps** (`apps`), **copies config files** (`configs`), then **sets your git name and email** (`git`).
 5. **Summarises** what was done, skipped or failed.
 
 If anything in the plan is wrong (for example a misspelled app name), exon stops before changing anything.
@@ -55,6 +55,27 @@ Copies every file from `home/` to the same place under `~`.
 
 Backups go to `~/.local/state/exon/backups/<date and time>/`, keeping their paths.
 Files are written in one go, so a crash or Ctrl+C never leaves a half-written file.
+
+## `git`
+
+Only runs if `[git]` has `set_name_and_email = true`. Asks:
+
+```text
+Your name for git commits [Nikhil Gupta]:
+Your email for git commits [nikhil@example.com]:
+```
+
+| Situation | What exon does |
+|---|---|
+| Already set | Shows the current values in brackets; Enter keeps them |
+| Not set yet | Asks until you type something |
+| Email doesn't look like one | Says so and asks again |
+| Same answers as before | Changes nothing |
+| With `--yes` and nothing set yet | Skips it, since there's nothing to answer with |
+
+The answers are saved in `~/.gitconfig` (with `git config --global`), never in your config repo.
+This runs after `configs`, so if your repo has a `.gitconfig` that replaces yours, your name and
+email are put back.
 
 ## Options
 
