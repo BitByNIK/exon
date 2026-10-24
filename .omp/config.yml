@@ -1,0 +1,4 @@
+# Project settings for omp in this repo (merged over ~/.omp/agent/config.yml).
+lsp:
+  formatOnWrite: true      # gofumpt via gopls on every write/edit, same as `make fmt`
+  diagnosticsOnEdit: true  # gopls + golangci-lint errors right after each edit

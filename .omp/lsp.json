@@ -1,0 +1,20 @@
+{
+  "servers": {
+    "gopls": {
+      "settings": {
+        "gopls": {
+          "gofumpt": true
+        }
+      }
+    },
+    "golangci-lint": {
+      "command": "golangci-lint-langserver",
+      "fileTypes": [".go"],
+      "rootMarkers": ["go.mod"],
+      "isLinter": true,
+      "initOptions": {
+        "command": ["golangci-lint", "run", "--output.json.path", "stdout", "--show-stats=false", "--issues-exit-code=1"]
+      }
+    }
+  }
+}

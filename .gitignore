@@ -7,6 +7,7 @@
 *.test
 *.out
 coverage.*
+__debug_bin*
 
 # editors / OS
 .DS_Store
