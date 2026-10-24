@@ -23,7 +23,7 @@ Works on **Apple Silicon Macs** with **Homebrew** installed.
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
 
-2. Install exon (not on Homebrew yet; for now [build it from source](CONTRIBUTING.md)):
+2. Install exon:
 
    ```sh
    brew install bitbynik/tap/exon
