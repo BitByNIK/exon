@@ -35,7 +35,7 @@ func read(t *testing.T, path string) string {
 // setup creates a repo with home/ files and a home folder in the given state.
 func setup(t *testing.T) (step.Env, *steptest.Recorder) {
 	rec := &steptest.Recorder{}
-	env := steptest.Env(t, "configs", "", &systest.Fake{}, rec)
+	env := steptest.Env(t, "configs", "[configs]\n", &systest.Fake{}, rec)
 	src := filepath.Join(env.Repo, "home")
 	write(t, filepath.Join(src, ".zshrc"), "new zshrc")
 	write(t, filepath.Join(src, ".tmux.conf"), "same")
@@ -162,5 +162,26 @@ func TestSourceOutsideRepo(t *testing.T) {
 	env := steptest.Env(t, "configs", "[configs]\nsource = \"../..\"\n", &systest.Fake{}, nil)
 	if _, err := configs.New().Prepare(context.Background(), env); err == nil {
 		t.Error("expected an error for a source outside the repo")
+	}
+}
+
+func TestNoSectionSkipsConfigs(t *testing.T) {
+	// No [configs] and no home/ folder: a config repo with only apps must not be blocked.
+	env := steptest.Env(t, "configs", "", &systest.Fake{}, nil)
+	p, err := configs.New().Prepare(context.Background(), env)
+	if err != nil {
+		t.Fatalf("without [configs], planning failed: %v", err)
+	}
+	if len(p.Items()) != 0 {
+		t.Errorf("items %v, want none", p.Items())
+	}
+}
+
+func TestEmptySectionUsesHomeFolder(t *testing.T) {
+	env := steptest.Env(t, "configs", "[configs]\n", &systest.Fake{}, nil)
+	write(t, filepath.Join(env.Repo, "home", ".zshrc"), "x")
+	p, err := configs.New().Prepare(context.Background(), env)
+	if err != nil || len(p.Items()) != 1 || p.Items()[0].Subject != "~/.zshrc" {
+		t.Errorf("items %v err %v, want ~/.zshrc from home/", p.Items(), err)
 	}
 }

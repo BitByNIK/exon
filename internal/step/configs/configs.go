@@ -42,6 +42,9 @@ var skipNames = map[string]bool{".DS_Store": true, ".gitkeep": true}
 
 // Prepare walks the source folder and compares every file with its target.
 func (*Step) Prepare(_ context.Context, env step.Env) (step.Plan, error) {
+	if !env.Config.Present() {
+		return &plan{}, nil // no [configs] section: nothing to copy
+	}
 	cfg := Config{Source: "home"}
 	if err := env.Config.Decode(&cfg); err != nil {
 		return nil, err

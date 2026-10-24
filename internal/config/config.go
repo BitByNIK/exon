@@ -78,6 +78,9 @@ type Section struct {
 	raw  map[string]any
 }
 
+// Present reports whether exon.toml has this section at all (even empty).
+func (s Section) Present() bool { return s.raw != nil }
+
 // Decode fills v (a pointer to a struct with `toml` tags) from the section.
 // Unknown keys and wrong types are errors naming the section and key.
 func (s Section) Decode(v any) error {
