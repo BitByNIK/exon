@@ -1,18 +1,55 @@
 # exon
 
-Set up a freshly reset Mac from a config repo: install your apps, place your config files, answer a few questions, done.
+Set up a freshly reset Mac in one command.
 
-> Status: in design. Nothing to install yet. See [docs/design.md](docs/design.md).
+You keep a small **config repo** on GitHub: the apps you want and your config files.
+After a reset, exon reads it, installs your apps, and puts your config files in place.
 
-## What it will do
+```sh
+exon setup your-name/your-config
+```
 
-- Install your Homebrew packages, apps and fonts
-- Copy your config files (zsh, Starship, WezTerm, tmux, omp, git, ssh) into place, backing up anything it replaces
-- Ask for personal values (git name/email, SSH hosts) instead of storing them in the repo
-- Show a plan first; `--dry-run` shows it without changing anything
-- Never touch logins or credentials: it ends with a checklist of what to sign into by hand
+- Shows you exactly what it will change and asks first. `--dry-run` only shows.
+- Backs up any file it replaces.
+- Never touches logins, passwords or keys. You sign in to things yourself.
 
-Apple Silicon only. Requires Homebrew.
+Works on **Apple Silicon Macs** with **Homebrew** installed.
+
+## Quick start
+
+1. Install Homebrew:
+   ```sh
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+2. Install exon (not published yet, see [Roadmap](#roadmap); for now [build it from source](CONTRIBUTING.md)):
+   ```sh
+   brew install bitbynik/tap/exon
+   ```
+3. Run it with your config repo:
+   ```sh
+   exon setup your-name/your-config
+   ```
+
+New here? Read [Getting started](docs/getting-started.md).
+
+## Docs
+
+| | |
+|---|---|
+| [Getting started](docs/getting-started.md) | From a fresh Mac to done, and how to make your config repo |
+| [Configuration](docs/configuration.md) | What goes in `exon.toml` and the `home/` folder |
+| [Steps](docs/steps.md) | What each step does and how it handles tricky cases |
+| [Troubleshooting](docs/troubleshooting.md) | Logs, backups, errors, exit codes |
+| [Contributing](CONTRIBUTING.md) | Working on exon itself |
+
+## Roadmap
+
+| Version | What's in it |
+|---|---|
+| **0.1** (now) | Install apps, copy config files, dry run, backups |
+| next | Publish to Homebrew so `brew install bitbynik/tap/exon` works |
+| 0.2 | Git name and email, SSH hosts, tmux plugins, sign-in checklist, progress bars, `--diff` |
+| later | Devcontainer support |
 
 ## License
 

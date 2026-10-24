@@ -1,0 +1,66 @@
+# Contributing
+
+## Setup
+
+Development happens in a dev container, so you don't need Go on your Mac.
+Open the repo in an editor that supports dev containers and choose to open it in the container.
+The image (`.devcontainer/Dockerfile`) includes Go and every tool below, at fixed versions.
+
+## Everyday commands
+
+Run these in the container:
+
+| Command | What it does |
+|---|---|
+| `make check` | Everything CI runs: lint, tests, build |
+| `make test` | Tests, with Go's race detector |
+| `make lint` | golangci-lint |
+| `make fmt` | Format all code (gofumpt) |
+| `make build` | Build `bin/exon` for Apple Silicon Macs |
+
+exon only runs on a Mac, not in the container. After `make build`, run it from a Mac terminal:
+
+```sh
+./bin/exon setup ~/Projects/exon-config --dry-run
+```
+
+To try real changes without touching your own files, point `HOME` at a throwaway folder:
+
+```sh
+HOME=/tmp/exon-test ./bin/exon setup ~/Projects/exon-config configs
+```
+
+## Tests
+
+- Never run real `brew` or touch the real home folder in tests.
+- Fake commands with `internal/sys/systest.Fake`; use temp folders for files (`internal/step/steptest`).
+- Test what a user would notice: what gets planned, retried, skipped or reported, and exit codes.
+
+## Commit messages
+
+Start with a type, so release notes can be generated from them:
+
+| Prefix | For |
+|---|---|
+| `feat:` | Something new for users |
+| `fix:` | A bug fix |
+| `docs:` | Documentation only |
+| `build:`, `chore:` | Tooling, dependencies, housekeeping |
+
+Example: `feat(apps): ask before replacing apps installed by hand`
+
+## Coding agents
+
+`AGENTS.md` gives coding agents the project rules. `.omp/` holds omp's language server and
+editor settings. The container already has the tools they use: gopls, golangci-lint-langserver
+and delve.
+
+## More
+
+- [Architecture](docs/architecture.md): how the code fits together, and how to add a step
+- [Decisions](docs/decisions.md): why things are the way they are
+
+## Releasing
+
+Not set up yet. Coming next: tagging `vX.Y.Z` will build exon, publish a GitHub release
+with notes from the commit messages, and update `brew install bitbynik/tap/exon`.

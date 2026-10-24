@@ -1,6 +1,7 @@
 # exon
 
-Go CLI that sets up a freshly reset Mac from a config repo. Full design: `docs/design.md`.
+Go CLI that sets up a freshly reset Mac from a config repo. How the code fits together:
+`docs/architecture.md`. Why things are the way they are: `docs/decisions.md` (don't undo these casually).
 
 ## Environment
 
@@ -26,8 +27,9 @@ Go CLI that sets up a freshly reset Mac from a config repo. Full design: `docs/d
 - Steps report progress via `env.Report` (Start/Done/Skip/Fail/Notice), never by printing.
 - Errors shown to users are `usererr.New(msg, hint, cause)`. Anything else is logged, not shown.
 - A per-item failure is reported and the step continues; returning an error fails the whole step.
-- New step: new package under `internal/step/`, one line in `internal/step/all/all.go`, its
-  `[section]` documented in `docs/design.md` §5.
+- New step: follow "Adding a step" in `docs/architecture.md`, and document it in `docs/steps.md`
+  and `docs/configuration.md`.
+- Docs describe only what exists. Planned work goes in the README roadmap.
 - Everything is under `internal/`: no public API to keep stable.
 
 ## Tests
