@@ -3,7 +3,9 @@
 Set up a freshly reset Mac in one command.
 
 You keep a small **config repo** on GitHub: the apps you want and your config files.
-After a reset, exon reads it, installs your apps, and puts your config files in place.
+After a reset, exon reads it, installs your apps, puts your config files in place, and can set
+your git name and email, add SSH hosts, and install tmux's plugin manager. It ends with your
+checklist of things to sign in to.
 
 ```sh
 exon setup your-name/your-config

@@ -55,7 +55,7 @@ func Env(t *testing.T, name, tomlText string, run sys.Runner, rec *Recorder) ste
 	if err := os.WriteFile(filepath.Join(repo, config.FileName), []byte(tomlText), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := config.Load(filepath.Join(repo, config.FileName), []string{"apps", "configs", "git"})
+	cfg, err := config.Load(filepath.Join(repo, config.FileName), []string{"apps", "configs", "git", "ssh", "tmux"})
 	if err != nil {
 		t.Fatal(err)
 	}

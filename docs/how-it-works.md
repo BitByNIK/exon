@@ -5,8 +5,10 @@ When you run `exon setup`, it:
 1. **Checks** your Mac.
 2. **Shows the plan**: everything it would change. Nothing has changed yet.
 3. **Asks** `Apply these changes?`, then any other questions.
-4. **Installs apps** (`apps`), **copies config files** (`configs`), then **sets your git name and email** (`git`).
-5. **Summarises** what was done, skipped or failed.
+4. Does each part you set up in `exon.toml`, in this order:
+   **installs apps** (`apps`), **copies config files** (`configs`), **sets your git name and email** (`git`),
+   **adds SSH hosts** (`ssh`), **installs tmux's plugin manager** (`tmux`).
+5. **Summarises** what was done, skipped or failed, then shows your **checklist** of things to do by hand.
 
 If anything in the plan is wrong (for example a misspelled app name), exon stops before changing anything.
 
@@ -76,6 +78,47 @@ Your email for git commits [nikhil@example.com]:
 The answers are saved in `~/.gitconfig` (with `git config --global`), never in your config repo.
 This runs after `configs`, so if your repo has a `.gitconfig` that replaces yours, your name and
 email are put back.
+
+## `ssh`
+
+Only asks what `[ssh]` turns on. First, whether to use the 1Password SSH agent (if it's set up
+already, Enter keeps it). Then SSH hosts, one after another:
+
+```text
+Add an SSH host? [y/N] y
+  Name (what you'll type after ssh): pi
+  Address (IP or host name): 192.168.1.100
+  User (Enter for your Mac user name): pi
+  Port [22]:
+Add another SSH host? [y/N] n
+```
+
+| Situation | What exon does |
+|---|---|
+| The name is already in `~/.ssh/config` | Asks whether to replace it; if not, keeps the old one |
+| Other hosts already there | Keeps them |
+| 1Password agent chosen | Adds it for all hosts; says so if 1Password isn't installed yet |
+| Name, address or port not valid | Says why and asks again |
+
+The old `~/.ssh/config` is backed up first, and `~/.ssh` is kept private (SSH refuses config
+files others can read). No keys are ever copied or created. This runs after `configs`, so hosts
+are added to the `~/.ssh/config` from your repo, if it has one.
+
+## `tmux`
+
+If `[tmux]` has `install_plugin_manager = true`, installs tpm into `~/.tmux/plugins/tpm`.
+Then press **prefix + I** in tmux to install the plugins listed in your `.tmux.conf`.
+
+| Situation | What exon does |
+|---|---|
+| Already installed | Skips it |
+| tmux not installed | Skips it, and says so |
+| Network trouble | Tries up to 3 times before giving up |
+
+## Checklist
+
+The items in `[checklist]` are printed at the end of every run, under **Next, by hand**.
+Use it for what exon doesn't do on purpose, like signing in to apps.
 
 ## Options
 

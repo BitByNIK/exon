@@ -5,3 +5,16 @@ casks    = ["font-jetbrains-mono"]
 
 [configs]
 source = "home"
+
+[git]
+set_name_and_email = true
+
+[ssh]
+ask_for_hosts = true
+ask_about_1password = true
+
+[tmux]
+install_plugin_manager = true
+
+[checklist]
+items = ["Sign in to your apps"]

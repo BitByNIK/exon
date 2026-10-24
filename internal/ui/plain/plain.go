@@ -98,7 +98,12 @@ func (r *Renderer) Emit(e events.Event) {
 		r.printf("%s: skipped, %s\n", e.Step, e.Reason)
 	case events.ItemStarted:
 		r.n++
-		r.printf("  → [%d/%d] %s\n", r.n, r.total, e.Item)
+		if r.n <= r.total {
+			r.printf("  → [%d/%d] %s\n", r.n, r.total, e.Item)
+		} else {
+			// Answers can turn one planned item into several ("SSH hosts" → each host).
+			r.printf("  → %s\n", e.Item)
+		}
 	case events.ItemDone:
 		line := "  ✓ " + e.Item
 		if e.Took >= 100*time.Millisecond {
@@ -125,8 +130,9 @@ func (r *Renderer) Emit(e events.Event) {
 	}
 }
 
-// Summary prints the outcome of the run.
+// Summary prints the outcome of the run, then the checklist of things to do by hand.
 func (r *Renderer) Summary(rep engine.Report) {
+	defer r.checklist(rep.Checklist)
 	took := rep.Took.Round(time.Second)
 	switch {
 	case rep.DryRun:
@@ -161,6 +167,8 @@ func (r *Renderer) Summary(rep engine.Report) {
 
 	for _, s := range rep.Steps {
 		switch {
+		case s.NotConfigured:
+			continue
 		case s.SkipReason != "":
 			r.printf("  %-10s skipped: %s\n", s.Name, s.SkipReason)
 		default:
@@ -192,6 +200,17 @@ func (r *Renderer) Summary(rep engine.Report) {
 	}
 	if rep.LogPath != "" {
 		r.printf("Log:     %s\n", r.short(rep.LogPath))
+	}
+}
+
+// checklist prints the things left to do by hand, if there are any.
+func (r *Renderer) checklist(items []string) {
+	if len(items) == 0 {
+		return
+	}
+	r.printf("\nNext, by hand:\n")
+	for _, it := range items {
+		r.printf("  □ %s\n", it)
 	}
 }
 

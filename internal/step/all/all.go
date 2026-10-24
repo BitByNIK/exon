@@ -7,6 +7,8 @@ import (
 	"github.com/bitbynik/exon/internal/step/apps"
 	"github.com/bitbynik/exon/internal/step/configs"
 	"github.com/bitbynik/exon/internal/step/git"
+	"github.com/bitbynik/exon/internal/step/ssh"
+	"github.com/bitbynik/exon/internal/step/tmux"
 )
 
 // Steps returns all steps in run order.
@@ -14,7 +16,9 @@ func Steps() []step.Step {
 	return []step.Step{
 		apps.New(),
 		configs.New(),
-		git.New(), // after configs: a replaced ~/.gitconfig then gets the name and email back
+		git.New(),  // after configs: a replaced ~/.gitconfig then gets the name and email back
+		ssh.New(),  // after configs, for the same reason with ~/.ssh/config
+		tmux.New(), // after apps, which may install tmux
 	}
 }
 

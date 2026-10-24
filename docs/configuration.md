@@ -4,8 +4,8 @@ A config repo has two parts: `exon.toml` at the top, and the `home/` folder.
 
 ## `exon.toml`
 
-`[apps]` lists what to install, `[configs]` where your config files are, `[git]` whether to set
-your git name and email. Leave one out and that part is skipped.
+Each section turns on one part: `[apps]`, `[configs]`, `[git]`, `[ssh]`, `[tmux]`, plus a
+`[checklist]` of reminders. Leave a section out and that part is skipped.
 A typo in a section or key name is an error, so mistakes don't go unnoticed.
 
 ### `[apps]`
@@ -49,6 +49,44 @@ set_name_and_email = true
 | `set_name_and_email` | Ask for the name and email git puts on your commits | `false` |
 
 Your answers are saved on your Mac only, never in the config repo.
+
+### `[ssh]`
+
+```toml
+[ssh]
+ask_for_hosts = true
+ask_about_1password = true
+```
+
+| Key | What it is | Default |
+|---|---|---|
+| `ask_for_hosts` | Ask for SSH hosts to add to `~/.ssh/config` | `false` |
+| `ask_about_1password` | Ask whether to use the 1Password SSH agent | `false` |
+
+### `[tmux]`
+
+```toml
+[tmux]
+install_plugin_manager = true
+```
+
+| Key | What it is | Default |
+|---|---|---|
+| `install_plugin_manager` | Install tmux's plugin manager (tpm) | `false` |
+
+### `[checklist]`
+
+```toml
+[checklist]
+items = [
+  "gh auth login --web",
+  "1Password → Settings → Developer → turn on the SSH agent",
+]
+```
+
+| Key | What it is |
+|---|---|
+| `items` | Things to do by hand, printed at the end of every run |
 
 ## The `home/` folder
 

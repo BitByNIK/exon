@@ -17,23 +17,52 @@ import (
 // Question is one thing to ask. ID must be unique across all steps in a run;
 // prefix it with the step name ("apps.adopt.google-chrome").
 //
-// A question is multiple choice when Options is set, free text when Input is
-// set, and yes/no otherwise.
+// A question is a repeating group when Repeat is set, multiple choice when
+// Options is set, free text when Input is set, and yes/no otherwise.
 type Question struct {
 	ID      string
 	Text    string
 	Options []string // choices for a multiple-choice question
 	Input   bool     // the answer is typed text
+	// Optional lets an Input question be answered with nothing.
+	Optional bool
 	// Default is one of Options, "yes"/"no" for a yes/no question, or the
 	// suggested text for an Input question (Enter keeps it).
 	Default string
 	// Validate checks a typed answer. Its error is shown and the question
 	// asked again. Optional; Input questions only.
 	Validate func(string) error
+	// When, for a question inside a Repeat group, decides from the answers
+	// given so far for the current entry whether to ask it.
+	When func(entry map[string]string) bool
+	// Repeat makes a repeating group: Text is asked as a yes/no question
+	// ("Add an SSH host?"); each yes asks the Repeat questions for one more
+	// entry, then Again ("Add another?"). Read the result with Answers.Entries.
+	Repeat []Question
+	Again  string
 }
 
 // Answers maps Question.ID to the chosen option ("yes"/"no" for yes/no questions).
+// Repeat groups are stored under "<ID>.<n>.<sub-ID>"; use Entries to read them.
 type Answers map[string]string
+
+// Entries returns the answers of a Repeat group, one map per entry, keyed by
+// the group's question IDs. Skipped questions are missing from an entry.
+func (a Answers) Entries(id string) []map[string]string {
+	n, _ := strconv.Atoi(a[id+".count"])
+	out := make([]map[string]string, 0, n)
+	for i := range n {
+		prefix := fmt.Sprintf("%s.%d.", id, i)
+		entry := map[string]string{}
+		for k, v := range a {
+			if rest, ok := strings.CutPrefix(k, prefix); ok {
+				entry[rest] = v
+			}
+		}
+		out = append(out, entry)
+	}
+	return out
+}
 
 // Prompter asks questions.
 type Prompter interface {
@@ -82,33 +111,72 @@ func (t *Terminal) Confirm(ctx context.Context, text string, def bool) (bool, er
 func (t *Terminal) Ask(ctx context.Context, qs []Question) (Answers, error) {
 	ans := Answers{}
 	for _, q := range qs {
-		switch {
-		case q.Input:
-			text, err := t.input(ctx, q)
+		if len(q.Repeat) > 0 {
+			entries, err := t.repeat(ctx, q)
 			if err != nil {
 				return nil, err
 			}
-			ans[q.ID] = text
-			continue
-		case len(q.Options) == 0:
-			ok, err := t.Confirm(ctx, q.Text, q.Default == "yes")
-			if err != nil {
-				return nil, err
+			ans[q.ID+".count"] = strconv.Itoa(len(entries))
+			for i, e := range entries {
+				for k, v := range e {
+					ans[fmt.Sprintf("%s.%d.%s", q.ID, i, k)] = v
+				}
 			}
-			ans[q.ID] = yesNo(ok)
 			continue
 		}
-		choice, err := t.choose(ctx, q)
+		v, err := t.one(ctx, q)
 		if err != nil {
 			return nil, err
 		}
-		ans[q.ID] = choice
+		ans[q.ID] = v
 	}
 	return ans, nil
 }
 
-// input asks for typed text. Enter keeps the default; an empty answer with no
-// default, or one Validate rejects, is asked again.
+// one asks a single (non-group) question.
+func (t *Terminal) one(ctx context.Context, q Question) (string, error) {
+	switch {
+	case q.Input:
+		return t.input(ctx, q)
+	case len(q.Options) == 0:
+		ok, err := t.Confirm(ctx, q.Text, q.Default == "yes")
+		return yesNo(ok), err
+	default:
+		return t.choose(ctx, q)
+	}
+}
+
+// repeat asks a Repeat group until the user says no.
+func (t *Terminal) repeat(ctx context.Context, q Question) ([]map[string]string, error) {
+	var entries []map[string]string
+	text := q.Text
+	for {
+		more, err := t.Confirm(ctx, text, false)
+		if err != nil {
+			return nil, err
+		}
+		if !more {
+			return entries, nil
+		}
+		entry := map[string]string{}
+		for _, sub := range q.Repeat {
+			if sub.When != nil && !sub.When(entry) {
+				continue
+			}
+			v, err := t.one(ctx, sub)
+			if err != nil {
+				return nil, err
+			}
+			entry[sub.ID] = v
+		}
+		entries = append(entries, entry)
+		text = q.Again
+	}
+}
+
+// input asks for typed text. Enter keeps the default. An empty answer with no
+// default is asked again unless the question is Optional; one Validate
+// rejects is always asked again.
 func (t *Terminal) input(ctx context.Context, q Question) (string, error) {
 	for {
 		if q.Default != "" {
@@ -124,6 +192,9 @@ func (t *Terminal) input(ctx context.Context, q Question) (string, error) {
 			line = q.Default
 		}
 		if line == "" {
+			if q.Optional {
+				return "", nil
+			}
 			fmt.Fprintln(t.out, "  Please type an answer.")
 			continue
 		}

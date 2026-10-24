@@ -28,7 +28,7 @@ All code is under `internal/`, so nothing is a public API.
 | `config` | Reads `exon.toml`; gives each step its own section |
 | `engine` | Runs the steps and owns the failure rules |
 | `step` | What a step is (`Step`, `Plan`, `Env`) |
-| `step/apps`, `step/configs` | The steps |
+| `step/apps`, `step/configs`, `step/git`, `step/ssh`, `step/tmux` | The steps (the checklist is printed by `ui/`, it's not a step) |
 | `step/all` | The list of steps, in run order |
 | `sys` | The only code that runs commands or writes files |
 | `events`, `ui/plain` | Progress messages and how they're printed |

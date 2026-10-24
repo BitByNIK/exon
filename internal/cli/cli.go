@@ -182,8 +182,14 @@ func runSetup(parent context.Context, f setupFlags, srcArg string, stepArgs []st
 	}
 	defer cleanup()
 
-	cfg, err := config.Load(filepath.Join(repo, config.FileName), all.Names())
+	cfg, err := config.Load(filepath.Join(repo, config.FileName), append(all.Names(), "checklist"))
 	if err != nil {
+		return 0, err
+	}
+	var checklist struct {
+		Items []string `toml:"items"`
+	}
+	if err := cfg.Section("checklist").Decode(&checklist); err != nil {
 		return 0, err
 	}
 
@@ -200,6 +206,7 @@ func runSetup(parent context.Context, f setupFlags, srcArg string, stepArgs []st
 		Home:      home,
 		BackupDir: filepath.Join(stateDir, "exon", "backups", now.Format(logfile.Stamp)),
 		LogPath:   logFile.Name(),
+		Checklist: checklist.Items,
 	})
 	return code, nil
 }

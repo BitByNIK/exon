@@ -49,6 +49,8 @@ type Options struct {
 	Home      string
 	BackupDir string
 	LogPath   string
+	// Checklist is printed at the end of every run: things to do by hand.
+	Checklist []string
 }
 
 // StepPlan is one step's plan, or the error that stopped it from planning.
@@ -71,7 +73,8 @@ type Report struct {
 	Nothing   bool // everything was already set up
 	Declined  bool // the user said no at the confirmation
 	LogPath   string
-	BackupDir string // set only if backups were written
+	BackupDir string   // set only if backups were written
+	Checklist []string // things to do by hand
 }
 
 // StepReport is the outcome of one step.
@@ -82,6 +85,9 @@ type StepReport struct {
 	Failures   []events.ItemFailed
 	Err        error  // the step as a whole failed
 	SkipReason string // the step did not run
+	// NotConfigured: exon.toml doesn't ask this step for anything. The plan
+	// already says so, so progress and the summary leave it out.
+	NotConfigured bool
 }
 
 // Failed reports whether anything in the run failed.
@@ -98,7 +104,7 @@ func (r Report) Failed() bool {
 // report and the process exit code.
 func Run(ctx context.Context, o Options) (Report, int) {
 	start := time.Now()
-	report := Report{DryRun: o.DryRun, LogPath: o.LogPath}
+	report := Report{DryRun: o.DryRun, LogPath: o.LogPath, Checklist: o.Checklist}
 
 	plans := planAll(ctx, o)
 	o.UI.Plan(plans, o.DryRun)
@@ -214,6 +220,9 @@ func applyOne(ctx context.Context, o Options, tally *tally, sp StepPlan, answers
 	skip := func(reason string) StepReport {
 		o.UI.Emit(events.StepSkipped{Step: name, Reason: reason})
 		return StepReport{Name: name, SkipReason: reason}
+	}
+	if len(sp.items) == 0 {
+		return StepReport{Name: name, NotConfigured: true}
 	}
 	if ctx.Err() != nil {
 		return skip("cancelled")
