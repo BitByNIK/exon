@@ -38,7 +38,6 @@ The name is deliberately not tied to one feature: more steps can be added later
 - GUI app settings
 - Ongoing sync (`status`, `save`, `update`, `undo`)
 - Intel Macs
-- Zed config (to be added later)
 - Devcontainers (separate future feature)
 
 ## 3. User flow
@@ -442,4 +441,4 @@ the `preflight.Host` interface, so every package compiles and tests on Linux.
 | v0.1 | Engine (plan, dry run, failure rules, events, log), pre-run checks, source resolution, plain renderer, `apps`, `configs` |
 | v0.2 | TUI renderer, `git`, `ssh`, `extras`, `checklist`, `--diff` |
 | v0.3 | Starter example, full docs, CI, GoReleaser + tap, first public release |
-| later | Zed config, devcontainer support, Linux |
+| later | Devcontainer support, Linux |
