@@ -68,12 +68,14 @@ type PlanItem struct {
 type Env struct {
 	Run       sys.Runner
 	FS        sys.FS
+	Net       sys.Downloader // fetches release data and files
 	Report    *Reporter
 	Log       *slog.Logger
 	Config    config.Section // this step's [section]
 	Repo      string         // config repo root
 	Home      string         // the user's home folder
 	BackupDir string         // where to back up replaced files for this run
+	CacheDir  string         // exon's folder for downloads that are safe to delete
 }
 
 // Reporter sends one step's progress events and measures item durations.
@@ -94,6 +96,13 @@ func (r *Reporter) Start(item string) {
 	r.mu.Lock()
 	r.start[item] = time.Now()
 	r.mu.Unlock()
+	r.sink.Emit(events.ItemStarted{Step: r.step, Item: item})
+}
+
+// StartUntimed is Start for an item that is announced well before its work
+// finishes, so that the time from here to Done would be misleading. Done and
+// Fail then report no duration.
+func (r *Reporter) StartUntimed(item string) {
 	r.sink.Emit(events.ItemStarted{Step: r.step, Item: item})
 }
 

@@ -21,6 +21,8 @@ type FS interface {
 	MkdirAll(name string, perm fs.FileMode) error
 	Symlink(oldname, newname string) error
 	Chmod(name string, mode fs.FileMode) error
+	// RemoveAll deletes name and anything inside it. A path that does not exist is not an error.
+	RemoveAll(name string) error
 }
 
 // OSFS is the real file system.
@@ -49,6 +51,9 @@ func (OSFS) Symlink(oldname, newname string) error { return os.Symlink(oldname, 
 
 // Chmod wraps os.Chmod.
 func (OSFS) Chmod(name string, mode fs.FileMode) error { return os.Chmod(name, mode) }
+
+// RemoveAll wraps os.RemoveAll.
+func (OSFS) RemoveAll(name string) error { return os.RemoveAll(name) }
 
 // WriteFile writes to a temporary file in the same folder, then renames it over name.
 func (OSFS) WriteFile(name string, data []byte, perm fs.FileMode) (err error) {
@@ -98,4 +103,8 @@ func (readOnlyFS) Symlink(_, newname string) error {
 
 func (readOnlyFS) Chmod(name string, _ fs.FileMode) error {
 	return fmt.Errorf("%w: chmod %s", ErrReadOnly, name)
+}
+
+func (readOnlyFS) RemoveAll(name string) error {
+	return fmt.Errorf("%w: remove %s", ErrReadOnly, name)
 }

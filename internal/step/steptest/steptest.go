@@ -13,6 +13,7 @@ import (
 	"github.com/bitbynik/exon/internal/events"
 	"github.com/bitbynik/exon/internal/step"
 	"github.com/bitbynik/exon/internal/sys"
+	"github.com/bitbynik/exon/internal/sys/systest"
 )
 
 // Recorder is an events.Sink that keeps every event.
@@ -55,7 +56,7 @@ func Env(t *testing.T, name, tomlText string, run sys.Runner, rec *Recorder) ste
 	if err := os.WriteFile(filepath.Join(repo, config.FileName), []byte(tomlText), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := config.Load(filepath.Join(repo, config.FileName), []string{"apps", "configs", "git", "ssh", "tmux"})
+	cfg, err := config.Load(filepath.Join(repo, config.FileName), []string{"apps", "configs", "git", "ssh", "tmux", "dev"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,18 +66,21 @@ func Env(t *testing.T, name, tomlText string, run sys.Runner, rec *Recorder) ste
 	return step.Env{
 		Run:       run,
 		FS:        sys.OSFS{},
+		Net:       &systest.FakeDownloader{},
 		Report:    step.NewReporter(rec, name),
 		Log:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Config:    cfg.Section(name),
 		Repo:      repo,
 		Home:      t.TempDir(),
 		BackupDir: filepath.Join(t.TempDir(), "backup"),
+		CacheDir:  filepath.Join(t.TempDir(), "cache"),
 	}
 }
 
-// ReadOnly returns env with read-only Run and FS, as the engine uses for Prepare.
+// ReadOnly returns env with read-only Run, FS and Net, as the engine uses for Prepare.
 func ReadOnly(env step.Env) step.Env {
 	env.Run = sys.ReadOnlyRunner(env.Run)
 	env.FS = sys.ReadOnlyFS(env.FS)
+	env.Net = sys.ReadOnlyDownloader(env.Net)
 	return env
 }

@@ -2,6 +2,7 @@ package volume_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -204,6 +205,83 @@ func TestOpenSessions(t *testing.T) {
 	t.Run("a real failure is not hidden", func(t *testing.T) {
 		if _, err := newVolume(&systest.Fake{Handler: handler(map[string]int{"api": 2})}).OpenSessions(context.Background()); err == nil {
 			t.Error("want the error from the failed exec")
+		}
+	})
+}
+
+func TestImagePresent(t *testing.T) {
+	tests := []struct {
+		name    string
+		handler func(sys.Cmd) (sys.Result, error)
+		want    bool
+		wantErr bool
+	}{
+		{"present", nil, true, false},
+		{"not downloaded yet", func(c sys.Cmd) (sys.Result, error) { return systest.Fail(c, "No such image") }, false, false},
+		{"docker itself failed", func(sys.Cmd) (sys.Result, error) { return sys.Result{}, errors.New("socket vanished") }, false, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := newVolume(&systest.Fake{Handler: tt.handler}).ImagePresent(context.Background())
+			if got != tt.want || (err != nil) != tt.wantErr {
+				t.Errorf("ImagePresent = %v, %v; want %v, error %v", got, err, tt.want, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestPullImage(t *testing.T) {
+	fake := &systest.Fake{}
+	if err := newVolume(fake).PullImage(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := fake.Execs(); len(got) != 1 || got[0] != "docker pull --quiet "+volume.Image {
+		t.Errorf("commands = %v, want one quiet pull of the helper image", got)
+	}
+
+	failing := &systest.Fake{Handler: func(c sys.Cmd) (sys.Result, error) { return systest.Fail(c, "no route to host") }}
+	ue, ok := usererr.As(newVolume(failing).PullImage(context.Background()))
+	if !ok || ue.Hint == "" {
+		t.Error("a failed pull should be a user error with a hint")
+	}
+}
+
+func TestMissing(t *testing.T) {
+	files := []string{"shell/bashrc", "state/omp/agent/config.yml"}
+
+	t.Run("nothing asked, nothing run", func(t *testing.T) {
+		fake := &systest.Fake{}
+		got, err := newVolume(fake).Missing(context.Background(), nil)
+		if err != nil || got != nil || len(fake.Queries()) != 0 {
+			t.Errorf("got %v, %v after %v", got, err, fake.Queries())
+		}
+	})
+	t.Run("no volume yet: everything is missing and nothing is mounted", func(t *testing.T) {
+		fake := &systest.Fake{}
+		got, err := newVolume(fake).Missing(context.Background(), files)
+		if err != nil || !slices.Equal(got, files) {
+			t.Fatalf("Missing = %v, %v; want all of %v", got, err, files)
+		}
+		for _, q := range fake.Queries() {
+			if strings.HasPrefix(q, "docker run") {
+				t.Errorf("mounted a volume that does not exist: %s", q)
+			}
+		}
+	})
+	t.Run("asks the volume", func(t *testing.T) {
+		fake := &systest.Fake{Handler: func(c sys.Cmd) (sys.Result, error) {
+			if systest.Is(c, "docker volume ls") {
+				return out("toolbox\n")
+			}
+			return out("state/omp/agent/config.yml\n")
+		}}
+		got, err := newVolume(fake).Missing(context.Background(), files)
+		if err != nil || !slices.Equal(got, []string{"state/omp/agent/config.yml"}) {
+			t.Fatalf("Missing = %v, %v", got, err)
+		}
+		run := fake.Queries()[1]
+		if !strings.Contains(run, ":ro") || !strings.HasSuffix(run, " sh "+strings.Join(files, " ")) {
+			t.Errorf("want a read-only mount and the files as arguments: %s", run)
 		}
 	})
 }

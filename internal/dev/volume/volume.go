@@ -122,3 +122,49 @@ func (v Volume) OpenSessions(ctx context.Context) ([]string, error) {
 	}
 	return open, nil
 }
+
+// ImagePresent reports whether the helper image is already on this machine,
+// so the first install can say it is about to download it.
+func (v Volume) ImagePresent(ctx context.Context) (bool, error) {
+	_, err := v.Run.Query(ctx, sys.Cmd{Name: "docker", Args: []string{"image", "inspect", "--format", "{{.Id}}", Image}})
+	if _, isExit := errors.AsType[*sys.ExitError](err); isExit {
+		return false, nil // docker answered: it has no such image
+	}
+	return err == nil, err
+}
+
+// PullImage downloads the helper image.
+func (v Volume) PullImage(ctx context.Context) error {
+	if _, err := v.Run.Exec(ctx, sys.Cmd{Name: "docker", Args: []string{"pull", "--quiet", Image}}); err != nil {
+		return usererr.New("could not download the helper image",
+			"Check your internet connection and that Docker is running, then try again.", err)
+	}
+	return nil
+}
+
+// Missing returns those of files (paths inside the volume, such as
+// "shell/bashrc") that the volume does not have yet. Asking never creates the volume.
+func (v Volume) Missing(ctx context.Context, files []string) ([]string, error) {
+	if len(files) == 0 {
+		return nil, nil
+	}
+	exists, err := v.Exists(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return files, nil
+	}
+	args := append([]string{"run", "--rm", "-v", v.Name + ":" + MountPoint + ":ro", Image, "sh", "-c", listMissing, "sh"}, files...)
+	res, err := v.Run.Query(ctx, sys.Cmd{Name: "docker", Args: args})
+	if err != nil {
+		return nil, err
+	}
+	if out := strings.TrimSpace(string(res.Stdout)); out != "" {
+		return strings.Split(out, "\n"), nil
+	}
+	return nil, nil
+}
+
+// listMissing prints the arguments that are not files in the volume.
+const listMissing = `for f; do [ -e "` + MountPoint + `/$f" ] || printf '%s\n' "$f"; done`

@@ -21,6 +21,7 @@ func answer(tag string, assets ...asset) []byte {
 	type a struct {
 		Name   string `json:"name"`
 		URL    string `json:"browser_download_url"`
+		Size   int64  `json:"size"`
 		Digest string `json:"digest,omitempty"`
 	}
 	out := struct {
@@ -28,7 +29,7 @@ func answer(tag string, assets ...asset) []byte {
 		Assets []a    `json:"assets"`
 	}{Tag: tag}
 	for _, x := range assets {
-		out.Assets = append(out.Assets, a{x.name, "https://example.test/" + tag + "/" + x.name, x.digest})
+		out.Assets = append(out.Assets, a{x.name, "https://example.test/" + tag + "/" + x.name, int64(len(x.name)), x.digest})
 	}
 	b, _ := json.Marshal(out)
 	return b
@@ -59,6 +60,9 @@ func TestLatestTakesTagAddressAndChecksumFromTheRelease(t *testing.T) {
 	}
 	if r.SHA256 != "abcdef" {
 		t.Errorf("SHA256 = %q, want abcdef (lowercase, without the prefix)", r.SHA256)
+	}
+	if want := int64(len("gh_2.103.2_linux_arm64.tar.gz")); r.Size != want {
+		t.Errorf("Size = %d, want %d", r.Size, want)
 	}
 }
 

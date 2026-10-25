@@ -108,3 +108,30 @@ func TestRetryStopsWhenCancelled(t *testing.T) {
 		t.Errorf("err = %v after %d calls, want context.Canceled after 1", err, calls)
 	}
 }
+
+func TestRemoveAll(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "tree")
+	if err := os.MkdirAll(filepath.Join(dir, "a", "b"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a", "b", "f"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := sys.ReadOnlyFS(sys.OSFS{}).RemoveAll(dir); !errors.Is(err, sys.ErrReadOnly) {
+		t.Errorf("read-only RemoveAll err = %v, want ErrReadOnly", err)
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatalf("the read-only filesystem deleted the folder: %v", err)
+	}
+
+	if err := (sys.OSFS{}).RemoveAll(dir); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(dir); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("folder still there: %v", err)
+	}
+	if err := (sys.OSFS{}).RemoveAll(dir); err != nil {
+		t.Errorf("removing what is already gone must not fail: %v", err)
+	}
+}

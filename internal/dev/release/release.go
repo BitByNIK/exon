@@ -24,6 +24,7 @@ type Release struct {
 	Tool tool.Tool
 	Tag  string // "v18.12.6"; empty for a Clone tool, which has no releases
 	URL  string // where the release file is; empty for a Clone tool
+	Size int64  // the file's size in bytes, 0 if unknown
 	// SHA256 is the checksum GitHub computed for the file, as lowercase hex.
 	// Empty when GitHub has none, which the caller should tell the user.
 	SHA256 string
@@ -56,6 +57,7 @@ type answer struct {
 	Assets []struct {
 		Name   string `json:"name"`
 		URL    string `json:"browser_download_url"`
+		Size   int64  `json:"size"`   // bytes
 		Digest string `json:"digest"` // "sha256:<hex>"
 	} `json:"assets"`
 }
@@ -78,7 +80,7 @@ func lookup(ctx context.Context, dl sys.Downloader, t tool.Tool, url, asked stri
 			if !ok { // missing, or some other kind of digest: not usable
 				sum = ""
 			}
-			return Release{Tool: t, Tag: a.Tag, URL: asset.URL, SHA256: strings.ToLower(sum)}, nil
+			return Release{Tool: t, Tag: a.Tag, URL: asset.URL, Size: asset.Size, SHA256: strings.ToLower(sum)}, nil
 		}
 	}
 	return Release{}, usererr.New(

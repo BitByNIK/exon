@@ -41,6 +41,7 @@ type Options struct {
 	DryRun bool
 	Run    sys.Runner
 	FS     sys.FS
+	Net    sys.Downloader
 	Prompt prompt.Prompter
 	UI     UI
 	Log    *slog.Logger
@@ -48,6 +49,7 @@ type Options struct {
 	Repo      string
 	Home      string
 	BackupDir string
+	CacheDir  string // exon's folder for downloads that are safe to delete
 	LogPath   string
 	// Checklist is printed at the end of every run: things to do by hand.
 	Checklist []string
@@ -194,6 +196,7 @@ func planAll(ctx context.Context, o Options) []StepPlan {
 		env := o.env(s, events.SinkFunc(func(events.Event) {}))
 		env.Run = sys.ReadOnlyRunner(o.Run)
 		env.FS = sys.ReadOnlyFS(o.FS)
+		env.Net = sys.ReadOnlyDownloader(o.Net)
 		sp := StepPlan{Step: s}
 		sp.Plan, sp.Err = safePrepare(ctx, s, env)
 		if sp.Err != nil {
@@ -276,12 +279,14 @@ func (o Options) env(s step.Step, sink events.Sink) step.Env {
 	return step.Env{
 		Run:       o.Run,
 		FS:        o.FS,
+		Net:       o.Net,
 		Report:    step.NewReporter(sink, s.Name()),
 		Log:       o.Log.With("step", s.Name()),
 		Config:    o.Config.Section(s.Name()),
 		Repo:      o.Repo,
 		Home:      o.Home,
 		BackupDir: o.BackupDir,
+		CacheDir:  o.CacheDir,
 	}
 }
 

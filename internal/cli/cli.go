@@ -6,28 +6,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"runtime/debug"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/bitbynik/exon/internal/config"
 	"github.com/bitbynik/exon/internal/engine"
-	"github.com/bitbynik/exon/internal/logfile"
-	"github.com/bitbynik/exon/internal/preflight"
 	"github.com/bitbynik/exon/internal/prompt"
-	"github.com/bitbynik/exon/internal/source"
 	"github.com/bitbynik/exon/internal/step"
 	"github.com/bitbynik/exon/internal/step/all"
-	"github.com/bitbynik/exon/internal/sys"
 	"github.com/bitbynik/exon/internal/ui/plain"
 	"github.com/bitbynik/exon/internal/usererr"
 )
@@ -61,7 +53,7 @@ func Execute() (code int) {
 		// exon runs once after a reset; shell completion scripts aren't worth shipping.
 		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 	}
-	root.AddCommand(setupCmd(), versionCmd())
+	root.AddCommand(setupCmd(), devCmd(), versionCmd())
 
 	err := root.Execute()
 	if err == nil {
@@ -72,8 +64,9 @@ func Execute() (code int) {
 	}
 	plain.New(os.Stderr, "").Error(err)
 	if _, ok := usererr.As(err); !ok {
-		// Cobra usage errors (unknown flag, missing argument).
-		fmt.Fprintln(os.Stderr, "  Run 'exon setup --help' for usage.")
+		// Cobra usage errors (unknown flag, missing argument): point at the help of the command that was typed.
+		used, _, _ := root.Find(os.Args[1:])
+		fmt.Fprintf(os.Stderr, "  Run '%s --help' for usage.\n", used.CommandPath())
 	}
 	return engine.ExitProblems
 }
@@ -125,89 +118,33 @@ STEP limits the run to some steps; they always run in this order:
 }
 
 func runSetup(parent context.Context, f setupFlags, srcArg string, stepArgs []string, out io.Writer) (int, error) {
-	if parent == nil {
-		parent = context.Background()
-	}
-	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
 	steps, err := selectSteps(stepArgs)
 	if err != nil {
 		return 0, err
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return 0, err
-	}
-	now := time.Now()
-	stateDir := xdgDir("XDG_STATE_HOME", home, ".local/state")
-	dataDir := xdgDir("XDG_DATA_HOME", home, ".local/share")
-
-	logFile, err := logfile.Open(filepath.Join(stateDir, "exon", "logs"), now, 10)
-	if err != nil {
-		return 0, usererr.New("cannot create the log file", "", err)
-	}
-	defer func() { _ = logFile.Close() }()
-	log := slog.New(slog.NewTextHandler(logFile, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	log.Info("exon setup", "version", version, "source", srcArg, "steps", stepArgs, "dry_run", f.dryRun)
-
-	runner := &sys.OSRunner{Log: logFile}
-	if f.verbose {
-		runner.Echo = os.Stderr
-	}
-	ui := plain.New(out, home)
-
-	src, err := source.Parse(srcArg, home)
-	if err != nil {
-		return 0, err
-	}
-
-	checks := preflight.Run(ctx, preflight.OSHost{}, preflight.Options{
-		Home:         home,
-		FS:           sys.OSFS{},
-		NeedNetwork:  !f.dryRun || src.Remote(),
-		MinFreeBytes: 10 << 30,
+	r, code, err := start(parent, out, startOptions{
+		command:      "exon setup",
+		source:       srcArg,
+		dryRun:       f.dryRun,
+		verbose:      f.verbose,
+		minFreeBytes: 10 << 30,
+		logAttrs:     []any{"steps", stepArgs},
 	})
-	ui.Checks(checks)
-	for _, c := range checks {
-		log.Info("check", "name", c.Name, "status", c.Status, "detail", c.Detail)
+	if r == nil {
+		return code, err
 	}
-	if preflight.Failed(checks) {
-		return engine.ExitPreflight, nil
-	}
+	defer r.close()
 
-	repo, cleanup, err := source.Fetch(ctx, src, runner, filepath.Join(dataDir, "exon", "repos"), f.dryRun)
-	if err != nil {
-		return 0, err
-	}
-	defer cleanup()
-
-	cfg, err := config.Load(filepath.Join(repo, config.FileName), append(all.Names(), "checklist"))
-	if err != nil {
-		return 0, err
-	}
 	var checklist struct {
 		Items []string `toml:"items"`
 	}
-	if err := cfg.Section("checklist").Decode(&checklist); err != nil {
+	if err := r.cfg.Section("checklist").Decode(&checklist); err != nil {
 		return 0, err
 	}
 
-	_, code := engine.Run(ctx, engine.Options{
-		Steps:     steps,
-		Config:    cfg,
-		DryRun:    f.dryRun,
-		Run:       runner,
-		FS:        sys.OSFS{},
-		Prompt:    prompter(f.yes),
-		UI:        ui,
-		Log:       log,
-		Repo:      repo,
-		Home:      home,
-		BackupDir: filepath.Join(stateDir, "exon", "backups", now.Format(logfile.Stamp)),
-		LogPath:   logFile.Name(),
-		Checklist: checklist.Items,
-	})
+	opts := r.options(steps, f.dryRun, f.yes)
+	opts.Checklist = checklist.Items
+	_, code = engine.Run(r.ctx, opts)
 	return code, nil
 }
 

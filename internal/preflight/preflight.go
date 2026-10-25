@@ -58,6 +58,8 @@ type Options struct {
 	FS           sys.FS
 	NeedNetwork  bool // installs or a remote config repo
 	MinFreeBytes uint64
+	// SkipHomebrew leaves out the Homebrew checks, for commands that do not use it.
+	SkipHomebrew bool
 }
 
 // BrewInstall is Homebrew's official install command.
@@ -86,18 +88,8 @@ func Run(ctx context.Context, h Host, o Options) []Result {
 		})
 	}
 
-	brewPath, err := h.LookPath("brew")
-	switch {
-	case err != nil:
-		rs = append(rs, Result{Name: "Homebrew", Status: Fail, Detail: "not found", Hint: "Install it first:\n" + BrewInstall})
-	case brewPath != "/opt/homebrew/bin/brew":
-		rs = append(rs, Result{Name: "Homebrew", Status: Warn, Detail: "found at " + brewPath + ", expected /opt/homebrew/bin/brew"})
-	default:
-		rs = append(rs, Result{Name: "Homebrew", Status: OK, Detail: brewPath})
-	}
-
-	if err == nil {
-		rs = append(rs, checkShellenv(o))
+	if !o.SkipHomebrew {
+		rs = append(rs, checkHomebrew(o, h)...)
 	}
 
 	if _, err := h.LookPath("git"); err != nil {
@@ -122,6 +114,23 @@ func Run(ctx context.Context, h Host, o Options) []Result {
 		rs = append(rs, r)
 	}
 	return rs
+}
+
+// checkHomebrew checks that Homebrew is installed where expected and that
+// new terminal windows will find it.
+func checkHomebrew(o Options, h Host) []Result {
+	brewPath, err := h.LookPath("brew")
+	switch {
+	case err != nil:
+		return []Result{{Name: "Homebrew", Status: Fail, Detail: "not found", Hint: "Install it first:\n" + BrewInstall}}
+	case brewPath != "/opt/homebrew/bin/brew":
+		return []Result{
+			{Name: "Homebrew", Status: Warn, Detail: "found at " + brewPath + ", expected /opt/homebrew/bin/brew"},
+			checkShellenv(o),
+		}
+	default:
+		return []Result{{Name: "Homebrew", Status: OK, Detail: brewPath}, checkShellenv(o)}
+	}
 }
 
 // checkShellenv makes sure new terminal windows will find brew.

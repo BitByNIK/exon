@@ -121,3 +121,23 @@ func TestNetworkSkippedWhenNotNeeded(t *testing.T) {
 		t.Error("network was checked although not needed")
 	}
 }
+
+func TestHomebrewChecksCanBeSkipped(t *testing.T) {
+	h := goodHost()
+	delete(h.paths, "brew")
+	opts := Options{Home: t.TempDir(), FS: sys.OSFS{}}
+
+	if rs := Run(context.Background(), h, opts); !Failed(rs) {
+		t.Fatal("without Homebrew, a command that uses it must fail its checks")
+	}
+	opts.SkipHomebrew = true
+	rs := Run(context.Background(), h, opts)
+	if Failed(rs) {
+		t.Errorf("a command that does not use Homebrew must not need it: %+v", rs)
+	}
+	for _, r := range rs {
+		if strings.Contains(r.Name, "Homebrew") {
+			t.Errorf("Homebrew was checked although skipped: %+v", r)
+		}
+	}
+}

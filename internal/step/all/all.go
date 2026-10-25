@@ -9,6 +9,7 @@ import (
 	"github.com/bitbynik/exon/internal/step/git"
 	"github.com/bitbynik/exon/internal/step/ssh"
 	"github.com/bitbynik/exon/internal/step/tmux"
+	"github.com/bitbynik/exon/internal/step/toolbox"
 )
 
 // Steps returns all steps in run order.
@@ -20,6 +21,12 @@ func Steps() []step.Step {
 		ssh.New(),  // after configs, for the same reason with ~/.ssh/config
 		tmux.New(), // after apps, which may install tmux
 	}
+}
+
+// Dev returns the steps that `exon dev install` runs, for the Mac user with
+// the given ids. They are kept apart from Steps: `exon setup` never runs them.
+func Dev(uid, gid int) []step.Step {
+	return []step.Step{toolbox.New(uid, gid)}
 }
 
 // Names returns the step names in run order.
