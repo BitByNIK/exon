@@ -44,6 +44,14 @@ type Tool struct {
 type Link struct {
 	State string // "omp"
 	Home  string // ".omp"
+	File  bool   // Home is a single file, not a folder
+}
+
+// SharedLinks are the links that belong to no one tool: they are made in
+// every container whichever tools are installed.
+func SharedLinks() []Link {
+	// git keeps the name and email, and asks gh for GitHub credentials.
+	return []Link{{State: "git/config", Home: ".gitconfig", File: true}}
 }
 
 // bare removes the leading "v" from a tag: "v2.103.2" is "2.103.2".

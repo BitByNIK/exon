@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/bitbynik/exon/internal/dev/tool"
+	"github.com/bitbynik/exon/internal/dev/volume"
 	"github.com/bitbynik/exon/internal/step"
 	"github.com/bitbynik/exon/internal/step/steptest"
 	"github.com/bitbynik/exon/internal/step/toolbox"
@@ -145,7 +146,7 @@ func TestPlanForAFreshMachine(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := itemsOf(p)
-	for _, key := range []string{"install omp", "install gh", "install oh-my-bash", "download helper image"} {
+	for _, key := range []string{"install omp", "install gh", "install oh-my-bash", "install container scripts", "download helper image"} {
 		if it, ok := got[key]; !ok || it.Kind != step.Add {
 			t.Errorf("plan lacks an Add for %q: %v", key, p.Items())
 		}
@@ -156,13 +157,18 @@ func TestPlanForAFreshMachine(t *testing.T) {
 	if d := got["install oh-my-bash"].Detail; d != "git clone" {
 		t.Errorf("oh-my-bash detail = %q, want git clone", d)
 	}
-	if len(got) != 4 {
-		t.Errorf("plan = %v, want exactly those four lines", p.Items())
+	if len(got) != 5 {
+		t.Errorf("plan = %v, want exactly those five lines", p.Items())
 	}
 }
 
+// currentContainer is the fingerprint of the container files for the three tools in threeTools.
+func currentContainer() string {
+	return volume.ContainerFor([]tool.Tool{tool.OMP(), tool.GH(), tool.OhMyBash()}).Hash
+}
+
 func TestPlanLeavesWhatIsInstalled(t *testing.T) {
-	d := &docker{volume: true, image: true, versions: "omp|v18.12.6\ngh|v2.103.2\noh-my-bash|4d86087\n"}
+	d := &docker{volume: true, image: true, versions: "omp|v18.12.6\ngh|v2.103.2\noh-my-bash|4d86087\ncontainer|" + currentContainer() + "\n"}
 	p, _, _, err := prepare(t, d, standardGitHub(t), threeTools)
 	if err != nil {
 		t.Fatal(err)
@@ -174,6 +180,39 @@ func TestPlanLeavesWhatIsInstalled(t *testing.T) {
 	}
 	if len(p.Items()) != 3 {
 		t.Errorf("plan = %v, want one unchanged line per tool", p.Items())
+	}
+}
+
+func TestPlanRefreshesContainerFilesThatAreOutOfDate(t *testing.T) {
+	tests := map[string]string{
+		"older script or link list": "container|0123456789abcdef\n",
+		"never installed":           "",
+	}
+	for name, container := range tests {
+		t.Run(name, func(t *testing.T) {
+			d := &docker{volume: true, image: true, versions: "omp|v18.12.6\ngh|v2.103.2\noh-my-bash|4d86087\n" + container}
+			p, _, _, err := prepare(t, d, standardGitHub(t), threeTools)
+			if err != nil {
+				t.Fatal(err)
+			}
+			it, ok := itemsOf(p)["install container scripts"]
+			if !ok || it.Kind != step.Add || len(p.Items()) != 4 {
+				t.Errorf("plan = %v, want the tools unchanged and one Add for the container scripts", p.Items())
+			}
+		})
+	}
+}
+
+func TestContainerFilesFollowTheChosenTools(t *testing.T) {
+	// The volume holds the files made for omp only; the config now asks for three tools.
+	onlyOMP := volume.ContainerFor([]tool.Tool{tool.OMP()}).Hash
+	d := &docker{volume: true, image: true, versions: "omp|v18.12.6\ngh|v2.103.2\noh-my-bash|4d86087\ncontainer|" + onlyOMP + "\n"}
+	p, _, _, err := prepare(t, d, standardGitHub(t), threeTools)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := itemsOf(p)["install container scripts"]; !ok {
+		t.Errorf("plan = %v, want the links to be rebuilt for the new tool list", p.Items())
 	}
 }
 
@@ -263,7 +302,7 @@ func TestPlanStarterFiles(t *testing.T) {
 }
 
 func TestApplyInstallsAndReportsEachTool(t *testing.T) {
-	d := &docker{installOut: "ok|omp\nfail|gh|tar: broken\nok|oh-my-bash\n"}
+	d := &docker{installOut: "ok|omp\nfail|gh|tar: broken\nok|oh-my-bash\nok|container\n"}
 	p, env, rec, err := prepare(t, d, standardGitHub(t), threeTools)
 	if err != nil {
 		t.Fatal(err)
@@ -275,8 +314,8 @@ func TestApplyInstallsAndReportsEachTool(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got := rec.Outcomes(); got["omp"] != "done" || got["gh"] != "failed" || got["oh-my-bash"] != "done" {
-		t.Errorf("outcomes = %v, want omp and oh-my-bash done, gh failed", got)
+	if got := rec.Outcomes(); got["omp"] != "done" || got["gh"] != "failed" || got["oh-my-bash"] != "done" || got["container scripts"] != "done" {
+		t.Errorf("outcomes = %v, want omp, oh-my-bash and the container scripts done, gh failed", got)
 	}
 	var fetched []string
 	for _, f := range dl.Fetches() {
@@ -293,8 +332,11 @@ func TestApplyInstallsAndReportsEachTool(t *testing.T) {
 		!strings.Contains(d.stage.plan, "clone|oh-my-bash||https://github.com/ohmybash/oh-my-bash|") {
 		t.Errorf("the container saw plan %q", d.stage.plan)
 	}
-	if !slices.Contains(d.stage.files, "omp.download") || !slices.Contains(d.stage.files, "install.sh") {
-		t.Errorf("the container saw files %v, want the download and the script", d.stage.files)
+	if !slices.Contains(d.stage.files, "omp.download") || !slices.Contains(d.stage.files, "install.sh") || !slices.Contains(d.stage.files, "container") {
+		t.Errorf("the container saw files %v, want the download, the script and the container folder", d.stage.files)
+	}
+	if !strings.Contains(d.stage.plan, "container|container|"+currentContainer()+"|") {
+		t.Errorf("the plan %q lacks the container files line", d.stage.plan)
 	}
 	if n := countRuns(fake.Execs()); n != 1 {
 		t.Errorf("%d containers started to install, want 1", n)

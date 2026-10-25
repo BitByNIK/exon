@@ -52,6 +52,18 @@ install_clone() { # name address
   fi
 }
 
+# install_container: the scripts and the link list that dev containers run from the volume.
+install_container() {
+  for f in /stage/container/*; do
+    n=${f##*/}
+    cp "$f" "$work/$n" || return 1
+    case "$n" in
+      links) chmod 644 "$work/$n" ;;
+      *) chmod 755 "$work/$n" ;;
+    esac && mv -f "$work/$n" "$A/$n" || return 1
+  done
+}
+
 if [ -f /stage/plan ]; then
   while IFS='|' read -r kind name version file member <&3; do
     status=0
@@ -62,6 +74,7 @@ if [ -f /stage/plan ]; then
         err=$(install_clone "$name" "$file" 2>&1 </dev/null) || status=1
         [ "$status" = 0 ] && version=$(git -C "$A/lib/$name" rev-parse --short HEAD)
         ;;
+      container) err=$(install_container 2>&1 </dev/null) || status=1 ;;
       state)
         mkdir -p "$A/state/$name"
         continue

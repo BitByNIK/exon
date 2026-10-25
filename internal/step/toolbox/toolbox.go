@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	starterItem = "starter files"
-	seedFolder  = "toolbox" // in the config repo; mirrors the volume's layout
+	starterItem   = "starter files"
+	containerItem = "container scripts"
+	seedFolder    = "toolbox" // in the config repo; mirrors the volume's layout
 )
 
 // Step installs the tools that are not in the volume yet.
@@ -81,6 +82,13 @@ func (s *Step) Prepare(ctx context.Context, env step.Env) (step.Plan, error) {
 		}
 	}
 
+	// The container files are rebuilt for the chosen tools; they go in only when they differ from
+	// what the volume has, which also covers a new exon with a better script.
+	if c := volume.ContainerFor(cfg.Tools); installed[volume.ContainerName] != c.Hash {
+		p.container = &c
+		p.items = append(p.items, step.PlanItem{Kind: step.Add, Action: "install", Subject: containerItem, Detail: "init, link-workspaces"})
+	}
+
 	seedDir := filepath.Join(env.Repo, seedFolder)
 	files, ignored, err := starterFiles(env.FS, seedDir)
 	if err != nil {
@@ -101,7 +109,7 @@ func (s *Step) Prepare(ctx context.Context, env step.Env) (step.Plan, error) {
 		p.items = append(p.items, step.PlanItem{Kind: step.Add, Action: "copy", Subject: starterItem, Detail: describeFiles(missing)})
 	}
 
-	if len(p.todo) > 0 || len(missing) > 0 {
+	if len(p.todo) > 0 || len(missing) > 0 || p.container != nil {
 		present, err := vol.ImagePresent(ctx)
 		if err != nil {
 			return nil, err
@@ -167,6 +175,7 @@ type plan struct {
 	items     []step.PlanItem
 	todo      []release.Release // tools to install, in install order
 	seedDir   string            // set when starter files are to be copied
+	container *volume.Container // set when the container files are to be put in
 	pullImage bool
 }
 
@@ -209,29 +218,40 @@ func (p *plan) Apply(ctx context.Context, env step.Env, _ prompt.Answers) error 
 		}
 		items = append(items, it)
 	}
-	if len(items) == 0 && p.seedDir == "" {
+	if len(items) == 0 && p.seedDir == "" && p.container == nil {
 		return nil
+	}
+	if p.container != nil {
+		env.Report.StartUntimed(containerItem)
 	}
 	if p.seedDir != "" {
 		env.Report.StartUntimed(starterItem)
 	}
 
-	out, err := vol.Install(ctx, volume.Job{StageDir: stage, Items: items, SeedDir: p.seedDir})
+	out, err := vol.Install(ctx, volume.Job{StageDir: stage, Items: items, SeedDir: p.seedDir, Container: p.container})
 	for _, it := range items {
-		name := it.Tool.Name
-		switch why, failed := out.Failed[name]; {
-		case failed:
-			env.Report.Fail(name, errors.New(why), nil)
-		case slices.Contains(out.Installed, name):
-			env.Report.Done(name, versionOf(it))
-		default:
-			env.Report.Fail(name, errors.New("the container did not report this tool"), nil)
-		}
+		reportOutcome(env.Report, it.Tool.Name, it.Tool.Name, versionOf(it), out)
+	}
+	if p.container != nil {
+		reportOutcome(env.Report, containerItem, volume.ContainerName, "", out)
 	}
 	if p.seedDir != "" && err == nil {
 		env.Report.Done(starterItem, fmt.Sprintf("%d copied", len(out.Seeded)))
 	}
 	return err
+}
+
+// reportOutcome reports one item as the container answered about it. item is
+// the name shown; key is the name the container used.
+func reportOutcome(r *step.Reporter, item, key, detail string, out volume.Outcome) {
+	switch why, failed := out.Failed[key]; {
+	case failed:
+		r.Fail(item, errors.New(why), nil)
+	case slices.Contains(out.Installed, key):
+		r.Done(item, detail)
+	default:
+		r.Fail(item, errors.New("the container did not report this"), nil)
+	}
 }
 
 func versionOf(it volume.Item) string {

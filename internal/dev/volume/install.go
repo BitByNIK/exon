@@ -37,6 +37,8 @@ type Job struct {
 	// SeedDir, if not empty, is a folder on the Mac whose files are copied
 	// into the volume when the volume lacks them.
 	SeedDir string
+	// Container, if not nil, puts the container files in the volume.
+	Container *Container
 }
 
 // Outcome is what Install did, tool by tool.
@@ -57,12 +59,23 @@ type Outcome struct {
 // Docker if it does not exist. A tool that fails is reported in the Outcome and
 // the others still go in; an error means the whole run failed.
 func (v Volume) Install(ctx context.Context, job Job) (Outcome, error) {
-	// The script and the plan travel in the stage folder, so the command line stays short in the log.
-	if err := v.FS.WriteFile(filepath.Join(job.StageDir, "plan"), []byte(planText(job.Items)), 0o644); err != nil {
+	// The script, the plan and the container files travel in the stage folder, so the command line stays short in the log.
+	if err := v.FS.WriteFile(filepath.Join(job.StageDir, "plan"), []byte(planText(job.Items, job.Container)), 0o644); err != nil {
 		return Outcome{}, err
 	}
 	if err := v.FS.WriteFile(filepath.Join(job.StageDir, "install.sh"), []byte(installScript), 0o755); err != nil {
 		return Outcome{}, err
+	}
+	if job.Container != nil {
+		dir := filepath.Join(job.StageDir, "container")
+		if err := v.FS.MkdirAll(dir, 0o755); err != nil {
+			return Outcome{}, err
+		}
+		for name, content := range job.Container.Files {
+			if err := v.FS.WriteFile(filepath.Join(dir, name), content, 0o644); err != nil {
+				return Outcome{}, err
+			}
+		}
 	}
 	args := []string{
 		"run", "--rm",
@@ -84,8 +97,8 @@ func (v Volume) Install(ctx context.Context, job Job) (Outcome, error) {
 	return out, nil
 }
 
-// planText is the plan file the script reads: one tool per line.
-func planText(items []Item) string {
+// planText is the plan file the script reads: one line per tool, then one for the container files.
+func planText(items []Item, c *Container) string {
 	var b strings.Builder
 	line := func(fields ...string) { b.WriteString(strings.Join(fields, "|") + "\n") }
 	for _, it := range items {
@@ -101,6 +114,9 @@ func planText(items []Item) string {
 		for _, l := range t.Links {
 			line("state", l.State, "", "", "")
 		}
+	}
+	if c != nil {
+		line("container", ContainerName, c.Hash, "", "")
 	}
 	return b.String()
 }
