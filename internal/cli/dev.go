@@ -8,12 +8,14 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/bitbynik/exon/internal/dev/backup"
 	"github.com/bitbynik/exon/internal/dev/project"
 	"github.com/bitbynik/exon/internal/engine"
 	"github.com/bitbynik/exon/internal/step"
 	"github.com/bitbynik/exon/internal/step/all"
 	"github.com/bitbynik/exon/internal/step/projectinit"
 	"github.com/bitbynik/exon/internal/step/toolbox"
+	"github.com/bitbynik/exon/internal/step/toolboxbackup"
 )
 
 func devCmd() *cobra.Command {
@@ -25,7 +27,7 @@ func devCmd() *cobra.Command {
 The toolbox is one Docker volume that every dev container mounts. It holds your
 dev tools, their logins and your shell settings, so you install and sign in once.`,
 	}
-	cmd.AddCommand(devInstallCmd(), devUpdateCmd(), devInitCmd())
+	cmd.AddCommand(devInstallCmd(), devUpdateCmd(), devInitCmd(), devBackupCmd(), devRestoreCmd())
 	return cmd
 }
 
@@ -206,5 +208,118 @@ func runDevUpdate(parent context.Context, f devUpdateFlags, srcArg string, tools
 
 	steps := []step.Step{toolbox.NewUpdate(os.Getuid(), os.Getgid(), tools, f.version)}
 	_, code = engine.Run(r.ctx, r.options(steps, f.dryRun, f.yes))
+	return code, nil
+}
+
+type devBackupFlags struct {
+	devFlags
+	to string
+}
+
+func devBackupCmd() *cobra.Command {
+	var f devBackupFlags
+	cmd := &cobra.Command{
+		Use:   "backup",
+		Short: "Save the toolbox's logins and settings to a file",
+		Long: `Save the toolbox's logins and settings to a file.
+
+The backup holds what you cannot download again: your logins, settings, omp
+sessions and code indexes, and your shell settings. It does not hold the tools;
+exon dev install gets those back. The file is for you only (it contains login
+tokens), and goes in ~/Backups/exon unless you say --to.
+
+Close your omp sessions in dev containers first for a clean copy: a database
+that is being written may be copied half-done.`,
+		Example: `  exon dev backup
+  exon dev backup --to ~/Documents/backups`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			code, err := runDevBackup(cmd.Context(), f, cmd.OutOrStdout())
+			if err != nil {
+				return err
+			}
+			if code != engine.ExitOK {
+				return exitError{code}
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&f.to, "to", "", "the folder for the backup (default ~/Backups/exon)")
+	cmd.Flags().BoolVar(&f.dryRun, "dry-run", false, "show what would change, change nothing")
+	cmd.Flags().BoolVarP(&f.yes, "yes", "y", false, "don't ask for confirmation")
+	cmd.Flags().BoolVarP(&f.verbose, "verbose", "v", false, "also show the output of every command")
+	return cmd
+}
+
+func runDevBackup(parent context.Context, f devBackupFlags, out io.Writer) (int, error) {
+	r, err := begin(parent, out, "exon dev backup", f.verbose, "dry_run", f.dryRun)
+	if err != nil {
+		return 0, err
+	}
+	defer r.close()
+
+	dir := backup.DefaultDir(r.home)
+	if f.to != "" {
+		if dir, err = filepath.Abs(f.to); err != nil {
+			return 0, err
+		}
+	}
+	steps := []step.Step{toolboxbackup.NewBackup(os.Getuid(), os.Getgid(), dir, r.now)}
+	_, code := engine.Run(r.ctx, r.options(steps, f.dryRun, f.yes))
+	return code, nil
+}
+
+type devRestoreFlags struct {
+	devFlags
+	force bool
+}
+
+func devRestoreCmd() *cobra.Command {
+	var f devRestoreFlags
+	cmd := &cobra.Command{
+		Use:   "restore FILE",
+		Short: "Put a backup back into the toolbox",
+		Long: `Put a backup back into the toolbox.
+
+FILE is a backup made by exon dev backup. It is checked first: a file that
+tries to write outside the toolbox, or over the installed tools, is refused.
+
+A toolbox that already holds logins is not touched unless you pass --force;
+then the files in the backup replace files of the same name. The tools are not
+in a backup: run exon dev install afterwards.`,
+		Example: `  exon dev restore ~/Backups/exon/toolbox-2026-10-25_105503.tar.gz
+  exon dev restore ~/Backups/exon/toolbox-2026-10-25_105503.tar.gz --force`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			code, err := runDevRestore(cmd.Context(), f, args[0], cmd.OutOrStdout())
+			if err != nil {
+				return err
+			}
+			if code != engine.ExitOK {
+				return exitError{code}
+			}
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&f.force, "force", false, "restore over logins and settings that are already in the toolbox")
+	cmd.Flags().BoolVar(&f.dryRun, "dry-run", false, "show what would change, change nothing")
+	cmd.Flags().BoolVarP(&f.yes, "yes", "y", false, "don't ask for confirmation")
+	cmd.Flags().BoolVarP(&f.verbose, "verbose", "v", false, "also show the output of every command")
+	return cmd
+}
+
+func runDevRestore(parent context.Context, f devRestoreFlags, file string, out io.Writer) (int, error) {
+	abs, err := filepath.Abs(file)
+	if err != nil {
+		return 0, err
+	}
+	r, err := begin(parent, out, "exon dev restore", f.verbose, "file", abs, "force", f.force, "dry_run", f.dryRun)
+	if err != nil {
+		return 0, err
+	}
+	defer r.close()
+
+	steps := []step.Step{toolboxbackup.NewRestore(os.Getuid(), os.Getgid(), abs, f.force)}
+	_, code := engine.Run(r.ctx, r.options(steps, f.dryRun, f.yes))
 	return code, nil
 }

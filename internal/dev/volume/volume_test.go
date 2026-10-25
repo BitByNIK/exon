@@ -310,3 +310,100 @@ func TestRemoteHead(t *testing.T) {
 		})
 	}
 }
+
+func TestUsedBy(t *testing.T) {
+	fake := &systest.Fake{Handler: func(sys.Cmd) (sys.Result, error) { return out("web\napi\n") }}
+	got, err := newVolume(fake).UsedBy(context.Background())
+	if err != nil || !slices.Equal(got, []string{"web", "api"}) {
+		t.Errorf("UsedBy = %v, %v", got, err)
+	}
+	if q := fake.Queries(); len(q) != 1 || !strings.Contains(q[0], "volume=toolbox") {
+		t.Errorf("commands = %v, want one docker ps filtered by the volume", q)
+	}
+}
+
+func TestHasData(t *testing.T) {
+	volumeThere := func(found string) *systest.Fake {
+		return &systest.Fake{Handler: func(c sys.Cmd) (sys.Result, error) {
+			if systest.Is(c, "docker volume ls") {
+				return out("toolbox\n")
+			}
+			return out(found)
+		}}
+	}
+	if got, err := newVolume(volumeThere("/opt/toolbox/state/gh/hosts.yml\n")).HasData(context.Background()); err != nil || !got {
+		t.Errorf("a login file is data: got %v, %v", got, err)
+	}
+	if got, err := newVolume(volumeThere("")).HasData(context.Background()); err != nil || got {
+		t.Errorf("only empty placeholders is no data: got %v, %v", got, err)
+	}
+
+	fake := &systest.Fake{}
+	if got, err := newVolume(fake).HasData(context.Background()); err != nil || got {
+		t.Errorf("no volume: got %v, %v", got, err)
+	}
+	for _, q := range fake.Queries() {
+		if strings.HasPrefix(q, "docker run") {
+			t.Errorf("mounted a volume that does not exist: %s", q)
+		}
+	}
+}
+
+func TestBackupRunsTarAsTheMacUserOnAReadOnlyVolume(t *testing.T) {
+	fake := &systest.Fake{}
+	if err := newVolume(fake).Backup(context.Background(), "/Users/ng/Backups/exon", "toolbox-x.tar.gz"); err != nil {
+		t.Fatal(err)
+	}
+	execs := fake.Execs()
+	if len(execs) != 1 {
+		t.Fatalf("commands = %v, want exactly one container", execs)
+	}
+	for _, part := range []string{
+		"--user 501:20",
+		"-v toolbox:/opt/toolbox:ro",
+		"-v /Users/ng/Backups/exon:/backup",
+		"umask 077",
+		"--anchored",
+		"--exclude=./bin", "--exclude=./lib", "--exclude=./versions", "--exclude=./init", "--exclude=./link-workspaces", "--exclude=./links",
+		" sh toolbox-x.tar.gz",
+	} {
+		if !strings.Contains(execs[0], part) {
+			t.Errorf("command lacks %q:\n%s", part, execs[0])
+		}
+	}
+	if strings.Contains(execs[0], "-v toolbox:/opt/toolbox ") {
+		t.Error("the volume must be read-only while it is backed up")
+	}
+
+	failing := &systest.Fake{Handler: func(c sys.Cmd) (sys.Result, error) { return systest.Fail(c, "no space left") }}
+	if ue, ok := usererr.As(newVolume(failing).Backup(context.Background(), "/d", "f")); !ok || ue.Hint == "" {
+		t.Error("a failed backup should be a user error with a hint")
+	}
+}
+
+func TestRestoreUnpacksAsRootThenHandsTheVolumeToTheMacUser(t *testing.T) {
+	fake := &systest.Fake{}
+	if err := newVolume(fake).Restore(context.Background(), "/Users/ng/Backups/exon", "toolbox-x.tar.gz"); err != nil {
+		t.Fatal(err)
+	}
+	execs := fake.Execs()
+	if len(execs) != 1 {
+		t.Fatalf("commands = %v, want exactly one container", execs)
+	}
+	for _, part := range []string{
+		"-e OWNER=501:20",
+		"-v toolbox:/opt/toolbox ",
+		"-v /Users/ng/Backups/exon:/backup:ro",
+		"--no-same-owner",
+		`chown -R "$OWNER"`,
+		"chmod -R go-rwx /opt/toolbox/state",
+		" sh toolbox-x.tar.gz",
+	} {
+		if !strings.Contains(execs[0], part) {
+			t.Errorf("command lacks %q:\n%s", part, execs[0])
+		}
+	}
+	if strings.Contains(execs[0], "--user") {
+		t.Error("a new volume belongs to root until it is handed over, so the restore must start as root")
+	}
+}

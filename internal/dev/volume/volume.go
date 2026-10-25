@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/bitbynik/exon/internal/dev/backup"
 	"github.com/bitbynik/exon/internal/sys"
 	"github.com/bitbynik/exon/internal/usererr"
 )
@@ -94,19 +95,28 @@ func (v Volume) Installed(ctx context.Context) (map[string]string, error) {
 // listVersions prints "name|version" for every tool the volume has a version recorded for.
 const listVersions = `for f in ` + MountPoint + `/versions/*; do [ -f "$f" ] && printf '%s|%s\n' "${f##*/}" "$(cat "$f")"; done; true`
 
-// OpenSessions returns the names of running containers that have the
-// codebase-memory MCP running. Replacing the program under them is safe, but
-// the MCP refuses to start in a container of another version while an older
-// one is open elsewhere, so the user should close them first.
-func (v Volume) OpenSessions(ctx context.Context) ([]string, error) {
+// UsedBy returns the names of the running containers that have the volume mounted.
+func (v Volume) UsedBy(ctx context.Context) ([]string, error) {
 	res, err := v.Run.Query(ctx, sys.Cmd{Name: "docker", Args: []string{
 		"ps", "--filter", "volume=" + v.Name, "--format", "{{.Names}}",
 	}})
 	if err != nil {
 		return nil, err
 	}
+	return strings.Fields(string(res.Stdout)), nil
+}
+
+// OpenSessions returns the names of running containers that have the
+// codebase-memory MCP running. Replacing the program under them is safe, but
+// the MCP refuses to start in a container of another version while an older
+// one is open elsewhere, so the user should close them first.
+func (v Volume) OpenSessions(ctx context.Context) ([]string, error) {
+	names, err := v.UsedBy(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var open []string
-	for _, name := range strings.Fields(string(res.Stdout)) {
+	for _, name := range names {
 		_, err := v.Run.Query(ctx, sys.Cmd{Name: "docker", Args: []string{
 			"exec", name, "pgrep", "-f", "codebase-memory-mcp",
 		}})
@@ -184,3 +194,64 @@ func (v Volume) Missing(ctx context.Context, files []string) ([]string, error) {
 
 // listMissing prints the arguments that are not files in the volume.
 const listMissing = `for f; do [ -e "` + MountPoint + `/$f" ] || printf '%s\n' "$f"; done`
+
+// HasData reports whether the volume holds anything of the user's in state/:
+// a file that is not empty. The empty placeholders init makes do not count.
+// Asking never creates the volume.
+func (v Volume) HasData(ctx context.Context) (bool, error) {
+	exists, err := v.Exists(ctx)
+	if err != nil || !exists {
+		return false, err
+	}
+	res, err := v.Run.Query(ctx, sys.Cmd{Name: "docker", Args: []string{
+		"run", "--rm", "-v", v.Name + ":" + MountPoint + ":ro", Image,
+		"sh", "-c", "find " + MountPoint + "/state -type f -size +0 2>/dev/null | head -n 1",
+	}})
+	return strings.TrimSpace(string(res.Stdout)) != "", err
+}
+
+// Backup writes the volume's own data (everything but what exon installs)
+// to dir/file, readable by the Mac user only, because it holds login tokens.
+// dir must exist and be somewhere Docker can see, such as under the home folder.
+func (v Volume) Backup(ctx context.Context, dir, file string) error {
+	script := `umask 077; part="/backup/.$1.part"; ` +
+		"tar czf \"$part\" --anchored" + excludeFlags() + " -C " + MountPoint + ` . && mv "$part" "/backup/$1" || { rm -f "$part"; exit 1; }`
+	_, err := v.Run.Exec(ctx, sys.Cmd{Name: "docker", Args: []string{
+		"run", "--rm", "--user", v.Owner,
+		"-v", v.Name + ":" + MountPoint + ":ro",
+		"-v", dir + ":/backup",
+		Image, "sh", "-c", script, "sh", file,
+	}})
+	if err != nil {
+		return usererr.New("could not make the backup", "Check that Docker is running and that there is room for it in "+dir+".", err)
+	}
+	return nil
+}
+
+// excludeFlags is the tar flags that leave out what exon installs.
+func excludeFlags() string {
+	var b strings.Builder
+	for _, name := range backup.Excluded {
+		b.WriteString(" --exclude=./" + name)
+	}
+	return b.String()
+}
+
+// Restore unpacks the backup dir/file into the volume and gives the volume
+// to the Mac user. Files in the backup replace those of the same name. The
+// backup must have been checked with backup.Inspect first.
+func (v Volume) Restore(ctx context.Context, dir, file string) error {
+	script := `set -e; tar xzf "/backup/$1" -C ` + MountPoint + ` --no-same-owner; ` +
+		`chown -R "$OWNER" ` + MountPoint + `; chmod 755 ` + MountPoint + `; ` +
+		`[ ! -d ` + MountPoint + `/state ] || chmod -R go-rwx ` + MountPoint + `/state`
+	_, err := v.Run.Exec(ctx, sys.Cmd{Name: "docker", Args: []string{
+		"run", "--rm", "-e", "OWNER=" + v.Owner,
+		"-v", v.Name + ":" + MountPoint,
+		"-v", dir + ":/backup:ro",
+		Image, "sh", "-c", script, "sh", file,
+	}})
+	if err != nil {
+		return usererr.New("could not restore the backup", "Check that Docker is running, then try again.", err)
+	}
+	return nil
+}

@@ -2,6 +2,7 @@ package sys
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -12,6 +13,8 @@ type FS interface {
 	Lstat(name string) (fs.FileInfo, error)
 	Stat(name string) (fs.FileInfo, error)
 	ReadFile(name string) ([]byte, error)
+	// Open streams a file that may be too big to read whole, such as a backup.
+	Open(name string) (io.ReadCloser, error)
 	Readlink(name string) (string, error)
 	WalkDir(root string, fn fs.WalkDirFunc) error
 
@@ -30,6 +33,9 @@ type OSFS struct{}
 
 // Lstat wraps os.Lstat.
 func (OSFS) Lstat(name string) (fs.FileInfo, error) { return os.Lstat(name) }
+
+// Open wraps os.Open.
+func (OSFS) Open(name string) (io.ReadCloser, error) { return os.Open(name) }
 
 // Stat wraps os.Stat.
 func (OSFS) Stat(name string) (fs.FileInfo, error) { return os.Stat(name) }
