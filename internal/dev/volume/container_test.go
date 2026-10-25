@@ -256,3 +256,16 @@ func TestInitWithoutOtherProjectsMountedIsFine(t *testing.T) {
 		t.Errorf("init exited %d: %s", code, out)
 	}
 }
+
+func TestInitCreatesTheWorkspacesFolderWhenItIsMissing(t *testing.T) {
+	b := newBox(t, tool.OMP())
+	b.mkdir(filepath.Join(b.projects, "api"))
+	b.workspaces = filepath.Join(t.TempDir(), "workspaces") // not there yet, as in a bare image
+
+	if out, code := b.init(); code != 0 {
+		t.Fatalf("init exited %d: %s", code, out)
+	}
+	if got, err := os.Readlink(filepath.Join(b.workspaces, "api")); err != nil || got != filepath.Join(b.projects, "api") {
+		t.Errorf("/workspaces/api -> %q, %v; want a link to the project", got, err)
+	}
+}

@@ -12,10 +12,16 @@ WORKSPACES=${WORKSPACES:-/workspaces}
 
 [ -d "$PROJECTS" ] || { echo "link-workspaces: $PROJECTS is not mounted" >&2; exit 1; }
 
-# /workspaces belongs to root in most images.
-as_root() {
-  if [ -w "$WORKSPACES" ]; then "$@"; else sudo "$@"; fi
+# /workspaces belongs to root in most images, and may not exist yet. Use sudo only when the folder
+# to change (it, or the one above it when it is missing) is not ours.
+writable() {
+  [ -w "$WORKSPACES" ] || { [ ! -e "$WORKSPACES" ] && [ -w "$(dirname "$WORKSPACES")" ]; }
 }
+as_root() {
+  if writable; then "$@"; else sudo "$@"; fi
+}
+
+[ -d "$WORKSPACES" ] || as_root mkdir -p "$WORKSPACES" || exit 1
 
 for dir in "$PROJECTS"/*/; do
   [ -d "$dir" ] || continue
