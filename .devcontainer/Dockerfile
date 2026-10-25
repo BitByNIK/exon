@@ -9,6 +9,7 @@ ARG DELVE_VERSION=v1.27.2
 ARG GOLANGCI_LINT_LANGSERVER_VERSION=v0.0.12
 ARG LEFTHOOK_VERSION=v2.2.2
 ARG RUMDL_VERSION=v0.3.0
+ARG GORELEASER_VERSION=v2.19.0
 
 # Installed into /go/bin, where the base image keeps its own (unpinned) copies
 # of gopls, dlv and golangci-lint: ours replace them, and /go/bin is first on
@@ -36,3 +37,21 @@ RUN set -eu; \
     tar -xzf "${file}" rumdl; \
     install -m 0755 rumdl /usr/local/bin/rumdl; \
     rm -f "${file}" rumdl
+
+# shellcheck (checks the repo's shell scripts) and file (tells what kind a file is), from Debian's packages.
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends shellcheck file \
+ && rm -rf /var/lib/apt/lists/*
+
+# goreleaser (the release tool; same version as .github/workflows/release.yml) ships prebuilt
+# binaries; the download is checked against the checksums published with the release.
+RUN set -eu; \
+    case "${TARGETARCH:-arm64}" in arm64) arch=arm64 ;; amd64) arch=x86_64 ;; *) echo "unsupported arch ${TARGETARCH}"; exit 1 ;; esac; \
+    file="goreleaser_Linux_${arch}.tar.gz"; \
+    base="https://github.com/goreleaser/goreleaser/releases/download/${GORELEASER_VERSION}"; \
+    cd /tmp; \
+    curl -fsSLO "${base}/${file}"; \
+    curl -fsSL "${base}/checksums.txt" | grep " ${file}\$" | sha256sum -c -; \
+    tar -xzf "${file}" goreleaser; \
+    install -m 0755 goreleaser /usr/local/bin/goreleaser; \
+    rm -f "${file}" goreleaser
