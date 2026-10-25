@@ -1,0 +1,23 @@
+// Personal dev container for {{.Name}}, made by `exon dev init`. It sits next to the project's own
+// .devcontainer/devcontainer.json, if there is one, without touching it, and is kept out of git.
+// In Zed, choose "personal" when it asks which dev container to open.
+{
+  "name": {{json (printf "%s (personal)" .Name)}},
+  // Change the image to what the project needs. It must be Debian or Ubuntu (not Alpine) with git
+  // and sudo: the toolbox programs are built for them.
+  "image": {{json .Image}},
+  "remoteUser": {{json .User}},
+  // Gives that user your Mac's user ID, so it can use the toolbox volume, which is private to you.
+  "updateRemoteUserUID": true,
+  // toolbox: your tools, their logins and your shell settings, shared by every dev container.
+  "mounts": ["source={{.Volume}},target={{.MountPoint}},type=volume"],
+  // Your other projects, read-only, at /mnt/projects; init links each one to /workspaces/<name>.
+  // This is in runArgs, not mounts, because Zed drops "readonly" from mounts.
+  "runArgs": [{{json (printf "--mount=type=bind,source=%s,target=/mnt/projects,readonly" .ProjectsDir)}}],
+  "remoteEnv": {
+    "PATH": "{{.MountPoint}}/bin:${containerEnv:PATH}"
+  },
+  // One script path on purpose: Zed runs only the first word of a longer command. Your own
+  // steps go in the script.
+  "postCreateCommand": "./.devcontainer/personal/post-create.sh"
+}

@@ -44,6 +44,7 @@ type runCtx struct {
 	ctx      context.Context
 	home     string
 	stateDir string
+	dataDir  string
 	cacheDir string // exon's folder for downloads that are safe to delete
 	now      time.Time
 	log      *slog.Logger
@@ -63,11 +64,9 @@ func (r *runCtx) close() {
 	r.closers = nil
 }
 
-// start does what every command that works from a config repo begins with:
-// open the log, run the checks, fetch and read the config repo. A nil result
-// means the command must end now, with the returned exit code and error.
-// Otherwise the caller must call close.
-func start(parent context.Context, out io.Writer, o startOptions) (*runCtx, int, error) {
+// begin opens what every command starts with: the log and the display. The
+// caller must call close, unless begin returned an error.
+func begin(parent context.Context, out io.Writer, command string, verbose bool, logAttrs ...any) (*runCtx, error) {
 	if parent == nil {
 		parent = context.Background()
 	}
@@ -84,35 +83,59 @@ func start(parent context.Context, out io.Writer, o startOptions) (*runCtx, int,
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	r.home = home
 	r.stateDir = xdgDir("XDG_STATE_HOME", home, ".local/state")
-	dataDir := xdgDir("XDG_DATA_HOME", home, ".local/share")
+	r.dataDir = xdgDir("XDG_DATA_HOME", home, ".local/share")
 	r.cacheDir = filepath.Join(xdgDir("XDG_CACHE_HOME", home, ".cache"), "exon")
 
 	logFile, err := logfile.Open(filepath.Join(r.stateDir, "exon", "logs"), r.now, 10)
 	if err != nil {
-		return nil, 0, usererr.New("cannot create the log file", "", err)
+		return nil, usererr.New("cannot create the log file", "", err)
 	}
 	r.closers = append(r.closers, func() { _ = logFile.Close() })
 	r.logPath = logFile.Name()
 	r.log = slog.New(slog.NewTextHandler(logFile, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	r.log.Info(o.command, append([]any{"version", version, "source", o.source, "dry_run", o.dryRun}, o.logAttrs...)...)
+	r.log.Info(command, append([]any{"version", version}, logAttrs...)...)
 
 	r.runner = &sys.OSRunner{Log: logFile}
-	if o.verbose {
+	if verbose {
 		r.runner.Echo = os.Stderr
 	}
 	r.ui = plain.New(out, home)
+	r.cfg = &config.File{} // no config repo: every section is empty
+	ready = true
+	return r, nil
+}
 
-	src, err := source.Parse(o.source, home)
+// start does what every command that works from a config repo begins with:
+// open the log, run the checks, fetch and read the config repo. A nil result
+// means the command must end now, with the returned exit code and error.
+// Otherwise the caller must call close.
+func start(parent context.Context, out io.Writer, o startOptions) (*runCtx, int, error) {
+	r, err := begin(parent, out, o.command, o.verbose,
+		append([]any{"source", o.source, "dry_run", o.dryRun}, o.logAttrs...)...)
 	if err != nil {
 		return nil, 0, err
 	}
+	if code, err := r.loadConfig(o); err != nil || code != engine.ExitOK {
+		r.close()
+		return nil, code, err
+	}
+	return r, 0, nil
+}
 
-	checks := preflight.Run(ctx, preflight.OSHost{}, preflight.Options{
-		Home:         home,
+// loadConfig runs the checks, then fetches and reads the config repo. A
+// non-zero exit code with no error means a check failed.
+func (r *runCtx) loadConfig(o startOptions) (int, error) {
+	src, err := source.Parse(o.source, r.home)
+	if err != nil {
+		return 0, err
+	}
+
+	checks := preflight.Run(r.ctx, preflight.OSHost{}, preflight.Options{
+		Home:         r.home,
 		FS:           sys.OSFS{},
 		NeedNetwork:  o.alwaysNetwork || !o.dryRun || src.Remote(),
 		MinFreeBytes: o.minFreeBytes,
@@ -123,23 +146,19 @@ func start(parent context.Context, out io.Writer, o startOptions) (*runCtx, int,
 		r.log.Info("check", "name", c.Name, "status", c.Status, "detail", c.Detail)
 	}
 	if preflight.Failed(checks) {
-		return nil, engine.ExitPreflight, nil
+		return engine.ExitPreflight, nil
 	}
 
-	repo, cleanup, err := source.Fetch(ctx, src, r.runner, filepath.Join(dataDir, "exon", "repos"), o.dryRun)
+	repo, cleanup, err := source.Fetch(r.ctx, src, r.runner, filepath.Join(r.dataDir, "exon", "repos"), o.dryRun)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 	r.closers = append(r.closers, cleanup)
 	r.repo = repo
 
 	known := append(all.Names(), settings.SectionName, "checklist")
 	r.cfg, err = config.Load(filepath.Join(repo, config.FileName), known)
-	if err != nil {
-		return nil, 0, err
-	}
-	ready = true
-	return r, 0, nil
+	return 0, err
 }
 
 // options returns the engine options every command shares.
