@@ -109,7 +109,7 @@ func planText(items []Item, c *Container) string {
 		case tool.Archive:
 			line("archive", t.Name, it.Version, it.File, t.Member(it.Version))
 		case tool.Clone:
-			line("clone", t.Name, "", "https://github.com/"+t.Repo, "")
+			line("clone", t.Name, "", t.CloneURL(), "")
 		}
 		for _, l := range t.Links {
 			line("state", l.State, "", "", "")

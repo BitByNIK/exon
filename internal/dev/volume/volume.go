@@ -123,6 +123,22 @@ func (v Volume) OpenSessions(ctx context.Context) ([]string, error) {
 	return open, nil
 }
 
+// RemoteHead returns the commit the default branch of a git repository is at.
+// It asks from inside a container, so git runs there and not on the Mac.
+func (v Volume) RemoteHead(ctx context.Context, url string) (string, error) {
+	res, err := v.Run.Query(ctx, sys.Cmd{Name: "docker", Args: []string{
+		"run", "--rm", Image, "git", "ls-remote", url, "HEAD",
+	}})
+	if err != nil {
+		return "", err
+	}
+	fields := strings.Fields(string(res.Stdout))
+	if len(fields) == 0 || len(fields[0]) < 7 {
+		return "", fmt.Errorf("git ls-remote %s: unexpected answer %q", url, res.Stdout)
+	}
+	return fields[0], nil
+}
+
 // ImagePresent reports whether the helper image is already on this machine,
 // so the first install can say it is about to download it.
 func (v Volume) ImagePresent(ctx context.Context) (bool, error) {

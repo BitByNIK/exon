@@ -39,6 +39,9 @@ type Tool struct {
 	Links []Link
 }
 
+// CloneURL is the address to git clone the tool from.
+func (t Tool) CloneURL() string { return "https://github.com/" + t.Repo }
+
 // Link says that Home, a path in the container user's home, lives in the
 // volume under state/<State>.
 type Link struct {

@@ -24,11 +24,14 @@ const threeTools = "[dev]\ntools = [\"omp\", \"gh\", \"oh-my-bash\"]\n"
 
 // docker is a pretend Docker whose state the tests choose.
 type docker struct {
-	volume     bool   // the toolbox volume exists
-	versions   string // what the volume says is installed, as "name|version" lines
-	image      bool   // the helper image is already downloaded
-	missing    string // starter files the volume lacks, one per line
-	installOut string // what the install container prints
+	volume     bool     // the toolbox volume exists
+	versions   string   // what the volume says is installed, as "name|version" lines
+	image      bool     // the helper image is already downloaded
+	missing    string   // starter files the volume lacks, one per line
+	installOut string   // what the install container prints
+	remoteHead string   // the newest commit of the cloned tool, as git ls-remote shows it
+	containers []string // running containers that use the volume
+	open       []string // those of them that have the MCP open
 	stage      stagedJob
 }
 
@@ -61,6 +64,15 @@ func (d *docker) fake() *systest.Fake {
 				return out(d.versions)
 			case strings.Contains(cmd, "|| printf"):
 				return out(d.missing)
+			case strings.Contains(cmd, "ls-remote"):
+				return out(d.remoteHead + "\tHEAD\n")
+			case systest.Is(c, "docker ps"):
+				return out(strings.Join(d.containers, "\n") + "\n")
+			case systest.Is(c, "docker exec"):
+				if slices.Contains(d.open, c.Args[1]) {
+					return out("123\n")
+				}
+				return sys.Result{}, &sys.ExitError{Cmd: c, Code: 1}
 			case systest.Is(c, "docker run"):
 				d.look(c)
 				return out(d.installOut)
@@ -111,6 +123,7 @@ func github(t *testing.T, releases ...rel) *systest.FakeDownloader {
 			t.Fatal(err)
 		}
 		dl.Files["https://api.github.com/repos/"+r.tool.Repo+"/releases/latest"] = body
+		dl.Files["https://api.github.com/repos/"+r.tool.Repo+"/releases/tags/"+r.tag] = body
 		dl.Files[url] = []byte("bytes of " + r.tool.Name)
 	}
 	return dl

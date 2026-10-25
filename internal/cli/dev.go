@@ -13,6 +13,7 @@ import (
 	"github.com/bitbynik/exon/internal/step"
 	"github.com/bitbynik/exon/internal/step/all"
 	"github.com/bitbynik/exon/internal/step/projectinit"
+	"github.com/bitbynik/exon/internal/step/toolbox"
 )
 
 func devCmd() *cobra.Command {
@@ -24,7 +25,7 @@ func devCmd() *cobra.Command {
 The toolbox is one Docker volume that every dev container mounts. It holds your
 dev tools, their logins and your shell settings, so you install and sign in once.`,
 	}
-	cmd.AddCommand(devInstallCmd(), devInitCmd())
+	cmd.AddCommand(devInstallCmd(), devUpdateCmd(), devInitCmd())
 	return cmd
 }
 
@@ -142,5 +143,68 @@ func runDevInit(parent context.Context, f devInitFlags, dir string, out io.Write
 
 	steps := []step.Step{projectinit.New(abs, f.image, f.user)}
 	_, code := engine.Run(r.ctx, r.options(steps, f.dryRun, f.yes))
+	return code, nil
+}
+
+type devUpdateFlags struct {
+	devFlags
+	version string
+}
+
+func devUpdateCmd() *cobra.Command {
+	var f devUpdateFlags
+	cmd := &cobra.Command{
+		Use:   "update SOURCE [TOOL...]",
+		Short: "Update your dev tools in the toolbox volume",
+		Long: `Update your dev tools in the toolbox volume.
+
+SOURCE is your config repo, as for exon dev install. Without TOOL names every
+tool in [dev] tools is checked; each one that has a newer version is updated,
+and the plan shows the old and the new version. Tools that are not installed
+are left to exon dev install.
+
+--version puts a particular version of one tool in place of the newest, which
+is also how to go back to an older one. Close your sessions of the
+codebase-memory MCP first: the plan warns when containers have it open.`,
+		Example: `  exon dev update bitbynik/exon-config
+  exon dev update bitbynik/exon-config omp gh
+  exon dev update bitbynik/exon-config omp --version v18.8.7`,
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			code, err := runDevUpdate(cmd.Context(), f, args[0], args[1:], cmd.OutOrStdout())
+			if err != nil {
+				return err
+			}
+			if code != engine.ExitOK {
+				return exitError{code}
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&f.version, "version", "", "put this version of the tool instead of the newest (needs exactly one TOOL)")
+	cmd.Flags().BoolVar(&f.dryRun, "dry-run", false, "show what would change, change nothing")
+	cmd.Flags().BoolVarP(&f.yes, "yes", "y", false, "don't ask for confirmation")
+	cmd.Flags().BoolVarP(&f.verbose, "verbose", "v", false, "also show the output of every command")
+	return cmd
+}
+
+func runDevUpdate(parent context.Context, f devUpdateFlags, srcArg string, tools []string, out io.Writer) (int, error) {
+	r, code, err := start(parent, out, startOptions{
+		command:       "exon dev update",
+		source:        srcArg,
+		dryRun:        f.dryRun,
+		verbose:       f.verbose,
+		alwaysNetwork: true, // planning asks GitHub for the newest versions
+		skipHomebrew:  true,
+		minFreeBytes:  3 << 30,
+		logAttrs:      []any{"tools", tools, "version", f.version},
+	})
+	if r == nil {
+		return code, err
+	}
+	defer r.close()
+
+	steps := []step.Step{toolbox.NewUpdate(os.Getuid(), os.Getgid(), tools, f.version)}
+	_, code = engine.Run(r.ctx, r.options(steps, f.dryRun, f.yes))
 	return code, nil
 }

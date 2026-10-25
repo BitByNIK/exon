@@ -285,3 +285,28 @@ func TestMissing(t *testing.T) {
 		}
 	})
 }
+
+func TestRemoteHead(t *testing.T) {
+	const sha = "4d86087aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+	fake := &systest.Fake{Handler: func(sys.Cmd) (sys.Result, error) { return out(sha + "\tHEAD\n") }}
+	got, err := newVolume(fake).RemoteHead(context.Background(), "https://github.com/ohmybash/oh-my-bash")
+	if err != nil || got != sha {
+		t.Fatalf("RemoteHead = %q, %v; want %s", got, err, sha)
+	}
+	if q := fake.Queries(); len(q) != 1 || q[0] != "docker run --rm "+volume.Image+" git ls-remote https://github.com/ohmybash/oh-my-bash HEAD" {
+		t.Errorf("commands = %v, want git to run inside the helper container, not on the Mac", q)
+	}
+	if len(fake.Execs()) != 0 {
+		t.Error("asking must not change anything")
+	}
+
+	for name, answer := range map[string]string{"empty": "", "not a commit": "fatal\n"} {
+		t.Run(name, func(t *testing.T) {
+			f := &systest.Fake{Handler: func(sys.Cmd) (sys.Result, error) { return out(answer) }}
+			if _, err := newVolume(f).RemoteHead(context.Background(), "u"); err == nil {
+				t.Error("want an error for an answer that is not a commit")
+			}
+		})
+	}
+}
