@@ -1,12 +1,13 @@
 # Configuration
 
-A config repo has two parts: `exon.toml` at the top, and the `home/` folder.
+A config repo has three parts: `exon.toml` at the top, the `home/` folder for your Mac, and the
+`toolbox/` folder for dev containers.
 
 ## `exon.toml`
 
-Each section turns on one part: `[apps]`, `[configs]`, `[git]`, `[ssh]`, `[tmux]`, plus a
-`[checklist]` of reminders. Leave a section out and that part is skipped.
-A typo in a section or key name is an error, so mistakes don't go unnoticed.
+Each section turns on one part: `[apps]`, `[configs]`, `[git]`, `[ssh]` and `[tmux]` are used by
+`exon setup`, `[dev]` by `exon dev`, plus a `[checklist]` of reminders. Leave a section out and
+that part is skipped. A typo in a section or key name is an error, so mistakes don't go unnoticed.
 
 ### `[apps]`
 
@@ -74,6 +75,21 @@ install_plugin_manager = true
 |---|---|---|
 | `install_plugin_manager` | Install tmux's plugin manager (tpm) | `false` |
 
+### `[dev]`
+
+```toml
+[dev]
+tools = ["omp", "gh", "fzf", "eza"]
+```
+
+| Key | What it is | Default |
+|---|---|---|
+| `tools` | The tools `exon dev install` and `exon dev update` look after | All of them |
+
+The tools: `omp` (the omp coding agent), `codebase-memory-mcp` (its code index), `gh` (GitHub's
+command line), `fzf` (the fuzzy finder), `eza` (a modern `ls`) and `oh-my-bash` (the shell
+framework). `exon setup` ignores this section.
+
 ### `[checklist]`
 
 ```toml
@@ -106,3 +122,18 @@ What not to put in it:
 
 - Passwords, tokens, keys, or files that contain them.
 - Files that apps rewrite with login data, like `~/.config/gh/hosts.yml`.
+
+## The `toolbox/` folder
+
+Starter files for the shared toolbox that dev containers use ([Dev containers](dev-containers.md)).
+It has the same layout as the toolbox volume. `exon dev install` copies a file in only if the
+volume doesn't have it yet, so changes made inside a container are kept.
+
+| In your repo | In the toolbox |
+|---|---|
+| `toolbox/state/omp/agent/config.yml` | omp's settings in every container (`~/.omp/agent/config.yml`) |
+| `toolbox/shell/bashrc` | Your shell settings. Every container's `~/.bashrc` loads it last, so it wins over the image's own |
+| `toolbox/shell/inputrc` | Your readline settings (`~/.inputrc`) |
+
+Files under `bin/`, `lib/` or `versions/` are ignored, with a warning: exon manages those.
+Don't put logins in it.

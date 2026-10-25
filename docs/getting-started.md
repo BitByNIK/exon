@@ -1,12 +1,14 @@
 # Getting started
 
+This page is about setting up a Mac. For dev containers, see [Dev containers](dev-containers.md).
+
 ## 1. Make your config repo (once)
 
 Your config repo holds what exon sets up. It's a normal GitHub repo with this layout:
 
 ```text
 your-config/
-├── exon.toml          # which apps to install
+├── exon.toml          # which apps to install, and more
 └── home/              # your config files, laid out like your home folder
     ├── .zshrc
     ├── .tmux.conf
@@ -15,6 +17,8 @@ your-config/
 ```
 
 A file at `home/.config/starship.toml` ends up at `~/.config/starship.toml`.
+
+An optional `toolbox/` folder holds starter files for dev containers: see [Dev containers](dev-containers.md).
 
 A minimal `exon.toml`:
 

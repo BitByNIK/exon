@@ -47,10 +47,10 @@ func Execute() (code int) {
 
 	root := &cobra.Command{
 		Use:           "exon",
-		Short:         "Set up a freshly reset Mac from your config repo",
+		Short:         "Personal setup tooling, driven by a config repo you own",
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		// exon runs once after a reset; shell completion scripts aren't worth shipping.
+		// exon is run rarely; shell completion scripts aren't worth shipping.
 		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 	}
 	root.AddCommand(setupCmd(), devCmd(), versionCmd())

@@ -1,6 +1,7 @@
 # exon
 
-Go CLI that sets up a freshly reset Mac from a config repo. How the code fits together:
+Go CLI of personal setup tooling, driven by a config repo: it sets up a freshly reset Mac (`exon setup`)
+and keeps a shared toolbox for dev containers (`exon dev`). How the code fits together:
 `docs/architecture.md`. Why things are the way they are: `docs/decisions.md` (don't undo these casually).
 
 ## Environment
@@ -8,6 +9,8 @@ Go CLI that sets up a freshly reset Mac from a config repo. How the code fits to
 - Development runs in the devcontainer (Linux arm64). exon itself only runs on macOS/Apple Silicon:
   `make build` cross-compiles `bin/exon` for darwin/arm64; run it on the Mac, not in the container.
 - Preflight fails on Linux by design, so don't try to run `exon setup` in the container. Use tests.
+- `exon dev` commands also need Docker running on the Mac. Try them with the cross-built binary; use
+  a throwaway project folder, and take a `exon dev backup` before trying anything on the real toolbox volume.
 
 ## Commands
 
@@ -27,8 +30,13 @@ Go CLI that sets up a freshly reset Mac from a config repo. How the code fits to
 - Steps report progress via `env.Report` (Start/Done/Skip/Fail/Notice), never by printing.
 - Errors shown to users are `usererr.New(msg, hint, cause)`. Anything else is logged, not shown.
 - A per-item failure is reported and the step continues; returning an error fails the whole step.
+- The network goes through `env.Net` (`sys.Downloader`), which is read-only while planning: `Get`
+  works, `Download` fails. Never use `net/http` outside `internal/sys`.
+- A dev step that reads the Docker volume while planning must check that it exists first: mounting
+  a volume that does not exist creates it. `Apply` builds its own `volume.Volume` from its own
+  `Env`; the one from `Prepare` can only read.
 - New step: follow "Adding a step" in `docs/architecture.md`, and document it in
-  `docs/how-it-works.md` and `docs/configuration.md`.
+  `docs/how-it-works.md` and `docs/configuration.md`. New dev tool: "Adding a tool" there.
 - Docs describe only what exists today. Planned work belongs in GitHub issues, not in docs.
 - Everything is under `internal/`: no public API to keep stable.
 
@@ -44,6 +52,11 @@ Go CLI that sets up a freshly reset Mac from a config repo. How the code fits to
 
 ## Tests
 
-- Commands are faked with `internal/sys/systest.Fake`; files use real temp folders
-  (`internal/step/steptest.Env`). Never touch the real home folder or run real `brew`.
+- Commands are faked with `internal/sys/systest.Fake`, the network with `systest.FakeDownloader`; files use
+  real temp folders (`internal/step/steptest.Env`). Never touch the real home folder, run real `brew`,
+  or start real containers.
 - Test behaviour users would notice (plan kinds, retries, skip/fail outcomes, exit codes), not wiring.
+- The container scripts `init.sh` and `link-workspaces.sh` (`internal/dev/volume/container/`) are tested by
+  running the real file with `sh` against temp folders. A change to one needs a test that fails without it.
+- `internal/dev/volume/install.sh` runs as root on `/opt/toolbox` and `/stage`, so it has no unit test.
+  Try a change to it for real, against a scratch volume, before committing.

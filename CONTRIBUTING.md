@@ -30,10 +30,14 @@ To try real changes without touching your own files, point `HOME` at a throwaway
 HOME=/tmp/exon-test ./bin/exon setup ~/Projects/exon-config configs
 ```
 
+`exon dev` commands also need Docker running on the Mac, and they work on your real `toolbox` volume.
+Run `exon dev backup` before you try a change to them.
+
 ## Tests
 
 - Never run real `brew` or touch the real home folder in tests.
-- Fake commands with `internal/sys/systest.Fake`; use temp folders for files (`internal/step/steptest`).
+- Fake commands with `internal/sys/systest.Fake` and the network with `systest.FakeDownloader`; use temp
+  folders for files (`internal/step/steptest`).
 - Test what a user would notice: what gets planned, retried, skipped or reported, and exit codes.
 
 ## Formatting on commit

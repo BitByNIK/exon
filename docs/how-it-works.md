@@ -1,6 +1,6 @@
-# How it works
+# How exon setup works
 
-When you run `exon setup`, it:
+This page is about setting up a Mac. When you run `exon setup`, it:
 
 1. **Checks** your Mac.
 2. **Shows the plan**: everything it would change. Nothing has changed yet.
@@ -127,3 +127,6 @@ Use it for what exon doesn't do on purpose, like signing in to apps.
 | `--dry-run` | Checks and shows the plan, then stops. Changes nothing |
 | `--yes`, `-y` | Doesn't ask `Apply these changes?`; questions get their default answer |
 | `--verbose`, `-v` | Also shows the full output of every command |
+
+The `exon dev` commands work the same way: a plan first, then your answer. They are described in
+[Dev containers](dev-containers.md).

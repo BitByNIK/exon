@@ -1,4 +1,4 @@
-// Command exon sets up a freshly reset Mac from a config repo.
+// Command exon is personal setup tooling, driven by a config repo you own.
 package main
 
 import (

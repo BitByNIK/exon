@@ -44,7 +44,7 @@ homebrew_casks:
   - name: exon
     binaries: [exon]
     homepage: https://github.com/BitByNIK/exon
-    description: Set up a freshly reset Mac in one command
+    description: Personal setup tooling, driven by a config repo you own
     repository:
       owner: BitByNIK
       name: homebrew-tap
