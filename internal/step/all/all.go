@@ -1,4 +1,5 @@
-// Package all lists every step in the order they run.
+// Package all lists the steps of `exon setup`, in the order they run. The dev steps are not here:
+// `exon dev` builds them itself, because they take arguments.
 // Adding a step: create its package under internal/step and add it here.
 package all
 
@@ -9,7 +10,6 @@ import (
 	"github.com/bitbynik/exon/internal/step/git"
 	"github.com/bitbynik/exon/internal/step/ssh"
 	"github.com/bitbynik/exon/internal/step/tmux"
-	"github.com/bitbynik/exon/internal/step/toolbox"
 )
 
 // Steps returns all steps in run order.
@@ -21,12 +21,6 @@ func Steps() []step.Step {
 		ssh.New(),  // after configs, for the same reason with ~/.ssh/config
 		tmux.New(), // after apps, which may install tmux
 	}
-}
-
-// Dev returns the steps that `exon dev install` runs, for the Mac user with
-// the given ids. They are kept apart from Steps: `exon setup` never runs them.
-func Dev(uid, gid int) []step.Step {
-	return []step.Step{toolbox.New(uid, gid)}
 }
 
 // Names returns the step names in run order.

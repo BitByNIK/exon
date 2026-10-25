@@ -12,7 +12,6 @@ import (
 	"github.com/bitbynik/exon/internal/dev/project"
 	"github.com/bitbynik/exon/internal/engine"
 	"github.com/bitbynik/exon/internal/step"
-	"github.com/bitbynik/exon/internal/step/all"
 	"github.com/bitbynik/exon/internal/step/projectinit"
 	"github.com/bitbynik/exon/internal/step/toolbox"
 	"github.com/bitbynik/exon/internal/step/toolboxbackup"
@@ -83,7 +82,8 @@ func runDevInstall(parent context.Context, f devFlags, srcArg string, out io.Wri
 	}
 	defer r.close()
 
-	_, code = engine.Run(r.ctx, r.options(all.Dev(os.Getuid(), os.Getgid()), f.dryRun, f.yes))
+	steps := []step.Step{toolbox.New(os.Getuid(), os.Getgid())}
+	_, code = engine.Run(r.ctx, r.options(steps, f.dryRun, f.yes))
 	return code, nil
 }
 
