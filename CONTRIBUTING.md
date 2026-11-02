@@ -101,6 +101,9 @@ GitHub then builds exon, publishes the release with a list of changes, and updat
 Pick the number from what changed: new features raise the middle number (`0.2.0` → `0.3.0`),
 bug fixes only raise the last one (`0.2.0` → `0.2.1`).
 
+To see what a release would build without publishing anything, run
+`goreleaser release --snapshot --clean` in the container. It writes to `dist/`, which git ignores.
+
 Publishing needs the `HOMEBREW_TAP_TOKEN` secret in this repo: a GitHub token allowed to write
 to `BitByNIK/homebrew-tap` only.
 

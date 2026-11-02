@@ -3,10 +3,12 @@ package sys
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -50,8 +52,8 @@ type StatusError struct {
 
 func (e *StatusError) Error() string { return fmt.Sprintf("%s: HTTP %d", e.URL, e.Code) }
 
-// DefaultParts is how many pieces of one file are fetched at the same time.
-// GitHub's download servers limit each connection, not the line, so several
+// DefaultParts is how many pieces of one file are fetched at the same time, each on its own
+// connection. GitHub's download servers limit each connection, not the line, so several
 // connections are several times faster for big files.
 const DefaultParts = 8
 
@@ -64,7 +66,7 @@ const (
 
 // OSDownloader is the real Downloader, built on net/http.
 type OSDownloader struct {
-	// Client is used for every request; nil means a client with no timeout.
+	// Client is used for every request; nil means NewClient().
 	Client *http.Client
 	// Parts is how many pieces are fetched at once; 0 means DefaultParts.
 	Parts int
@@ -76,7 +78,26 @@ func (d OSDownloader) client() *http.Client {
 	if d.Client != nil {
 		return d.Client
 	}
-	return &http.Client{}
+	return defaultClient()
+}
+
+var defaultClient = sync.OnceValue(NewClient)
+
+// NewClient returns the client downloads use unless OSDownloader.Client is set. It speaks
+// HTTP/1.1 only: HTTP/2 puts every piece of a file on one connection, which would undo the
+// point of fetching pieces (see DefaultParts). It has no overall timeout, as files are big.
+func NewClient() *http.Client {
+	tr := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: time.Second,
+		IdleConnTimeout:       90 * time.Second,
+		MaxIdleConnsPerHost:   DefaultParts,
+		// A non-nil, empty map turns HTTP/2 off.
+		TLSNextProto: map[string]func(string, *tls.Conn) http.RoundTripper{},
+	}
+	return &http.Client{Transport: tr}
 }
 
 func (d OSDownloader) parts() int {

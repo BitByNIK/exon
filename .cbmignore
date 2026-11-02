@@ -1,0 +1,15 @@
+# lockfile / license: no symbols
+go.sum
+LICENSE
+
+# agent config
+.omp/
+
+# smoke-run fixtures, not code
+testdata/
+
+# CI/release/hook plumbing
+.github/
+.goreleaser.yaml
+lefthook.yml
+.githooks/

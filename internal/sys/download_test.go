@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -82,6 +85,52 @@ func assertNoLeftovers(t *testing.T, dir string) {
 		if strings.HasSuffix(e.Name(), ".part") {
 			t.Errorf("leftover partial file %s", e.Name())
 		}
+	}
+}
+
+// Over HTTP/2 every request of a client shares one connection, and the pieces of a file would
+// all queue behind one limited connection. The default client must open one connection per piece.
+func TestDownloadUsesOneConnectionPerPiece(t *testing.T) {
+	const parts = 4
+	data := testData(parts * 5 << 20)
+	h := serveRanges(data, nil)
+	var inFlight atomic.Int32
+	allIn := make(chan struct{})
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Hold every piece until all of them are asked for at once; the one-byte probe goes through.
+		if r.Header.Get("Range") != "bytes=0-0" {
+			if inFlight.Add(1) == parts {
+				close(allIn)
+			}
+			select {
+			case <-allIn:
+			case <-time.After(5 * time.Second):
+			}
+		}
+		h.ServeHTTP(w, r)
+	}))
+	srv.EnableHTTP2 = true
+	var conns atomic.Int32
+	srv.Config.ConnState = func(_ net.Conn, s http.ConnState) {
+		if s == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	srv.StartTLS()
+	defer srv.Close()
+
+	roots := x509.NewCertPool()
+	roots.AddCert(srv.Certificate())
+	client := sys.NewClient()
+	client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: roots}
+
+	d := sys.OSDownloader{Client: client, Parts: parts, RetryBase: time.Millisecond}
+	dest := filepath.Join(t.TempDir(), "file")
+	if err := d.Download(context.Background(), sys.Fetch{URL: srv.URL, Dest: dest, SHA256: sum(data)}); err != nil {
+		t.Fatal(err)
+	}
+	if got := conns.Load(); got < parts {
+		t.Errorf("connections = %d, want at least %d (one per piece)", got, parts)
 	}
 }
 

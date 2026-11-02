@@ -22,7 +22,7 @@ jobs:
 
       - uses: goreleaser/goreleaser-action@v7
         with:
-          version: v2.19.0
+          version: v2.19.0 # keep in sync with .devcontainer/Dockerfile
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
