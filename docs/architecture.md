@@ -112,6 +112,7 @@ flowchart LR
 
 - **Downloads happen in Go on the Mac** (`sys.Downloader`), several connections at once, because
   GitHub limits each connection. The container only unpacks, and runs git (so git never runs on the Mac).
+- **Downloads use HTTP/1.1 only.** HTTP/2 would put all the pieces of a file on one connection.
 - **The container is a throwaway** from a Debian image that has git and tar. It mounts the volume,
   a staging folder under `~/.cache/exon`, and the config repo's `toolbox/` folder.
 - **Planning never creates the volume.** Mounting a volume that doesn't exist creates it, so every
