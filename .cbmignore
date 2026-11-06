@@ -4,6 +4,7 @@ LICENSE
 
 # agent config
 .omp/
+.claude/
 
 # smoke-run fixtures, not code
 testdata/

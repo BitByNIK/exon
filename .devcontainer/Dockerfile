@@ -1,5 +1,5 @@
 # Dev image for exon: Go plus the tools used by make, the git hooks, editors
-# and coding agents (omp) through LSP and DAP. Versions are pinned; bump them here.
+# and coding agents (omp, Claude Code) through LSP, and omp also through DAP. Versions are pinned; bump them here.
 FROM mcr.microsoft.com/devcontainers/go:2-1.27-trixie
 
 ARG GOFUMPT_VERSION=v0.12.0

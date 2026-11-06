@@ -109,9 +109,10 @@ to `BitByNIK/homebrew-tap` only.
 
 ## Coding agents
 
-`AGENTS.md` gives coding agents the project rules. `.omp/` holds omp's language server and
-editor settings. The container already has the tools they use: gopls, golangci-lint-langserver
-and delve.
+`AGENTS.md` gives coding agents the project rules; omp and Claude Code both read it. `.omp/` holds
+omp's language server and editor settings. `.claude/settings.json` turns on Claude Code's Go
+language server plugin (`gopls-lsp`) and formats each Go file Claude edits with gofumpt. The
+container already has the tools they use: gopls, golangci-lint-langserver, delve, gofumpt and jq.
 
 ## More
 
