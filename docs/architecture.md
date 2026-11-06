@@ -94,7 +94,7 @@ and `restore` need no config repo, so those commands skip the checks and the fet
 | Package | Job |
 |---|---|
 | `dev/tool` | Each tool as data: how to download it, and which folders hold its logins |
-| `dev/release` | The newest or a chosen version of a tool: tag, address and checksum, from GitHub's release data |
+| `dev/release` | The newest or a chosen version of a tool: tag, address and checksum, from GitHub's release data or a vendor's server |
 | `dev/volume` | Everything done to the Docker volume, through the `docker` command |
 | `dev/volume/container/` | The shell scripts that run inside dev containers (`init`, `link-workspaces`), embedded in exon |
 | `dev/project` | The templates for a project's personal dev container files |
@@ -112,6 +112,8 @@ flowchart LR
 
 - **Downloads happen in Go on the Mac** (`sys.Downloader`), several connections at once, because
   GitHub limits each connection. The container only unpacks, and runs git (so git never runs on the Mac).
+  A tool from its vendor's own server (Claude) is looked up and downloaded the same way; its
+  checksum comes from the server's manifest (`dev/release/server.go`).
 - **Downloads use HTTP/1.1 only.** HTTP/2 would put all the pieces of a file on one connection.
 - **The container is a throwaway** from a Debian image that has git and tar. It mounts the volume,
   a staging folder under `~/.cache/exon`, and the config repo's `toolbox/` folder.
@@ -123,11 +125,17 @@ flowchart LR
 
 ## Adding a tool
 
-1. Create `internal/dev/tool/<name>.go` returning a `Tool`: its kind (`Program`, `Archive` or
-   `Clone`), its GitHub repo, the release file names for Linux arm64 (`Asset`, `Member`) and
-   `Links` for the folders that hold its logins.
+1. Create `internal/dev/tool/<name>.go` returning a `Tool`: its kind (`Program`, `Archive`,
+   `Clone` or `Launched`), where it comes from, and `Links` for the folders that hold its logins.
+   - `Program` and `Archive`: its GitHub repo and the release file names for Linux arm64
+     (`Asset`, `Member`).
+   - `Clone`: its GitHub repo, which is cloned.
+   - `Launched`: the vendor's `Server` and `Platform`, and the `Launcher` script for `bin/<name>`.
+     The program goes in `lib/<name>/` and `state/<name>` is made. Claude is the example.
 2. Add it to `All()` in `tool.go`, in install order.
-3. Add its real file names to `TestAssetNames`, checked against the release.
+3. Add its real file names to `TestAssetNames`, checked against the release. A `Launched` tool
+   is covered by the release tests against the server's manifest instead.
 4. Add it to the tool lists in [configuration.md](configuration.md) and [dev-containers.md](dev-containers.md).
 
-The plan, the install script and `init` work from the `Tool` data, so they need no change.
+The plan, `init` and the install script work from the `Tool` data, so they need no change for the
+first three kinds. A new kind needs its own case in `release`, `volume/install.go` and `install.sh`.

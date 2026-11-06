@@ -7,6 +7,8 @@
 #   program  a file used as it is
 #   archive  a .tar.gz holding the program; member is its path inside the archive
 #   clone    a git repository; file is the repository address
+#   launched a program for lib/<name>/ plus a launcher script for bin/<name>; file is the program,
+#            member is the launcher's file name in /stage. The tool's folder in state/ is made too.
 #   state    a folder for the tool's login files (name only)
 #
 # Answers, one per line on stdout:  ok|name   fail|name|why   seeded|path   skipped|path
@@ -52,6 +54,12 @@ install_clone() { # name address
   fi
 }
 
+install_launched() { # name file launcher
+  mkdir -p "$A/lib/$1" "$A/state/$1" &&
+    cp "/stage/$2" "$work/$1" && cp "/stage/$3" "$work/$1.launcher" &&
+    put "$work/$1" "$A/lib/$1/$1" && put "$work/$1.launcher" "$A/bin/$1"
+}
+
 # install_container: the scripts and the link list that dev containers run from the volume.
 install_container() {
   for f in /stage/container/*; do
@@ -74,6 +82,7 @@ if [ -f /stage/plan ]; then
         err=$(install_clone "$name" "$file" 2>&1 </dev/null) || status=1
         [ "$status" = 0 ] && version=$(git -C "$A/lib/$name" rev-parse --short HEAD)
         ;;
+      launched) err=$(install_launched "$name" "$file" "$member" 2>&1 </dev/null) || status=1 ;;
       container) err=$(install_container 2>&1 </dev/null) || status=1 ;;
       state)
         mkdir -p "$A/state/$name"

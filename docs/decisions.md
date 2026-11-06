@@ -82,13 +82,28 @@ release. A pin in the config repo would go stale and need upkeep.
 
 GitHub limits each connection, not the line. In tests one connection ran at about 1 MB/s, and eight at
 once downloaded omp (218 MB) in under a minute. The checksum is the one GitHub itself publishes with
-the release. The container only unpacks and runs git, so docker is the only thing that runs on the Mac.
+the release (for Claude, the one in Anthropic's manifest). The container only unpacks and runs git,
+so docker is the only thing that runs on the Mac.
 
 ### Other projects are read-only, at their own paths
 
 omp names its session folders after the project path, and the code index names its indexes after it
 too. Mounting each project at `/workspaces/<name>`, the path it has in its own container, keeps them
 consistent. Read-only, so a tool in one container can't change another project.
+
+### Claude Code runs through a launcher, and exon is the only thing that updates it
+
+Claude keeps its login, settings and sessions in one folder that `CLAUDE_CONFIG_DIR` names, so
+`bin/claude` is a small script that sets it to `state/claude` and starts the program in `lib/claude/`.
+A link at `~/.claude.json` is avoided: if Claude saves that file by replacing it, the link becomes a
+plain file again, and one folder cannot have that problem. The launcher also sets
+`DISABLE_UPDATES=1`: Claude's own updater is built for one copy in each home folder, so run in one
+container it would not obviously change the shared program. Updates go through `exon dev update`,
+and every container then runs the same version.
+
+Claude comes from Anthropic's own server, not GitHub. The newest version is `/latest`, and each
+version's `manifest.json` gives the checksum the download is checked against. Anthropic's install
+script is not used: it ends by writing a launcher and shell settings into the home folder.
 
 ### A backup leaves out what exon installs, and a restore never writes there
 

@@ -1,6 +1,7 @@
 // Package release works out which version of a tool to install, where to
-// download it and what its checksum should be. All three come from one answer
-// of GitHub's release data.
+// download it and what its checksum should be. For a tool on GitHub all three
+// come from one answer of GitHub's release data; for a Launched tool, from its
+// vendor's release server.
 package release
 
 import (
@@ -33,17 +34,24 @@ type Release struct {
 // Latest finds the newest release of t. A Clone tool has no releases and
 // comes back empty.
 func Latest(ctx context.Context, dl sys.Downloader, t tool.Tool) (Release, error) {
-	if t.Kind == tool.Clone {
+	switch t.Kind {
+	case tool.Clone:
 		return Release{Tool: t}, nil
+	case tool.Launched:
+		return latestFromServer(ctx, dl, t)
 	}
 	return lookup(ctx, dl, t, api+t.Repo+"/releases/latest", "")
 }
 
 // At finds the release of t with the given tag. The leading "v" is optional:
-// every tool tags its releases with one, so "18.12.6" means "v18.12.6".
+// every GitHub tool tags its releases with one, so "18.12.6" means "v18.12.6".
+// A Launched tool's versions have none, so a "v" is removed instead.
 func At(ctx context.Context, dl sys.Downloader, t tool.Tool, tag string) (Release, error) {
-	if t.Kind == tool.Clone {
+	switch t.Kind {
+	case tool.Clone:
 		return Release{Tool: t}, nil
+	case tool.Launched:
+		return atOnServer(ctx, dl, t, strings.TrimPrefix(tag, "v"))
 	}
 	if !strings.HasPrefix(tag, "v") {
 		tag = "v" + tag

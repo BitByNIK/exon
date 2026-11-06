@@ -14,3 +14,6 @@ __debug_bin*
 .DS_Store
 .idea/
 .vscode/
+
+# agent settings that are only yours (Claude writes this file itself)
+.claude/settings.local.json

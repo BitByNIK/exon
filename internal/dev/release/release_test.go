@@ -182,3 +182,102 @@ func TestACloneToolHasNoReleaseAndNeedsNoNetwork(t *testing.T) {
 		})
 	}
 }
+
+const claudeServer = "https://downloads.claude.ai/claude-code-releases"
+
+// manifest builds the server's manifest for a version with the given platforms (name to checksum).
+func manifest(version string, platforms map[string]string) []byte {
+	type p struct {
+		Binary   string `json:"binary"`
+		Checksum string `json:"checksum"`
+		Size     int64  `json:"size"`
+	}
+	out := struct {
+		Version   string       `json:"version"`
+		Platforms map[string]p `json:"platforms"`
+	}{Version: version, Platforms: map[string]p{}}
+	for name, sum := range platforms {
+		out.Platforms[name] = p{"claude", sum, 339797432}
+	}
+	b, _ := json.Marshal(out)
+	return b
+}
+
+const claudeSum = "a7e687fd1cb054d651c7588223de3786c99d4c682365e3c3ae1e59ce7f3a591f"
+
+func claudeServerFiles(version string, platforms map[string]string) *systest.FakeDownloader {
+	return &systest.FakeDownloader{Files: map[string][]byte{
+		claudeServer + "/latest":                        []byte(version + "\n"),
+		claudeServer + "/" + version + "/manifest.json": manifest(version, platforms),
+	}}
+}
+
+func TestAToolFromItsOwnServerTakesVersionAddressAndChecksumFromTheManifest(t *testing.T) {
+	dl := claudeServerFiles("2.1.319", map[string]string{"linux-x64": strings.Repeat("0", 64), "linux-arm64": claudeSum})
+	r, err := release.Latest(context.Background(), dl, tool.Claude())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Tag != "2.1.319" {
+		t.Errorf("Tag = %q, want 2.1.319 (this server's versions have no v)", r.Tag)
+	}
+	if want := claudeServer + "/2.1.319/linux-arm64/claude"; r.URL != want {
+		t.Errorf("URL = %s, want %s", r.URL, want)
+	}
+	if r.SHA256 != claudeSum || r.Size != 339797432 {
+		t.Errorf("SHA256 = %q, Size = %d, want the arm64 build's", r.SHA256, r.Size)
+	}
+}
+
+func TestAtOnTheServerAcceptsAVersionWithOrWithoutV(t *testing.T) {
+	dl := claudeServerFiles("2.1.300", map[string]string{"linux-arm64": claudeSum})
+	for _, asked := range []string{"2.1.300", "v2.1.300"} {
+		r, err := release.At(context.Background(), dl, tool.Claude(), asked)
+		if err != nil {
+			t.Fatalf("At(%s): %v", asked, err)
+		}
+		if r.Tag != "2.1.300" {
+			t.Errorf("At(%s).Tag = %q, want 2.1.300", asked, r.Tag)
+		}
+	}
+}
+
+func TestServerErrorsAreWrittenForTheUser(t *testing.T) {
+	ok := map[string]string{"linux-arm64": claudeSum}
+	tests := []struct {
+		name string
+		dl   *systest.FakeDownloader
+		ask  string // "" for the latest
+		msg  string
+		hint string
+	}{
+		{"no releases", &systest.FakeDownloader{}, "", "has no releases", ""},
+		{"unknown version", &systest.FakeDownloader{}, "9.9.9", "has no release 9.9.9", "version number"},
+		{"not a version number", &systest.FakeDownloader{}, "latest", "not a version number", "2.1.319"},
+		{"latest is not a version", &systest.FakeDownloader{Files: map[string][]byte{claudeServer + "/latest": []byte("<html>")}}, "", "was not understood", "few minutes"},
+		{"manifest of another version", &systest.FakeDownloader{Files: map[string][]byte{
+			claudeServer + "/latest":                []byte("2.1.319"),
+			claudeServer + "/2.1.319/manifest.json": manifest("2.1.318", ok),
+		}}, "", "was not understood", "few minutes"},
+		{"no build for this platform", claudeServerFiles("2.1.319", map[string]string{"linux-x64": claudeSum}), "", "no download for Linux on Apple Silicon", "linux-arm64"},
+		{"no checksum", claudeServerFiles("2.1.319", map[string]string{"linux-arm64": ""}), "", "no usable checksum", "few minutes"},
+		{"checksum of another kind", claudeServerFiles("2.1.319", map[string]string{"linux-arm64": "sha512:abc"}), "", "no usable checksum", "few minutes"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var err error
+			if tt.ask == "" {
+				_, err = release.Latest(context.Background(), tt.dl, tool.Claude())
+			} else {
+				_, err = release.At(context.Background(), tt.dl, tool.Claude(), tt.ask)
+			}
+			ue, ok := usererr.As(err)
+			if !ok {
+				t.Fatalf("err = %v, want a user error", err)
+			}
+			if !strings.Contains(ue.Msg, tt.msg) || !strings.Contains(ue.Hint, tt.hint) {
+				t.Errorf("message %q, hint %q; want them to contain %q and %q", ue.Msg, ue.Hint, tt.msg, tt.hint)
+			}
+		})
+	}
+}

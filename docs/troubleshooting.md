@@ -41,6 +41,7 @@ Dev containers (`exon dev`):
 | `this backup is not safe to restore` | The file is not one exon made, or was changed. Don't restore it |
 | `there is no toolbox volume to back up` | Run `exon dev install` first |
 | A `close first` warning in the plan | Close your omp sessions in the containers it names, then run the update again |
+| `claude update`: `Updates are disabled by your administrator` | By design. The `claude` launcher blocks updates so every container runs the same version. Run `exon dev update your-name/your-config claude` on your Mac |
 
 After fixing something, run the same command again. Finished work is skipped.
 

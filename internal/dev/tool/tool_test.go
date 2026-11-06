@@ -1,6 +1,7 @@
 package tool_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bitbynik/exon/internal/dev/tool"
@@ -11,8 +12,11 @@ import (
 func TestEveryToolIsComplete(t *testing.T) {
 	seen := map[string]bool{}
 	for _, tl := range tool.All() {
-		if tl.Name == "" || tl.Summary == "" || tl.Repo == "" {
-			t.Errorf("%+v: name, summary and repo are required", tl)
+		if tl.Name == "" || tl.Summary == "" {
+			t.Errorf("%+v: name and summary are required", tl)
+		}
+		if tl.Kind != tool.Launched && tl.Repo == "" {
+			t.Errorf("%s: a tool from GitHub needs its repo", tl.Name)
 		}
 		if seen[tl.Name] {
 			t.Errorf("duplicate tool name %q", tl.Name)
@@ -31,6 +35,13 @@ func TestEveryToolIsComplete(t *testing.T) {
 		case tool.Clone:
 			if len(tl.Links) > 0 {
 				t.Errorf("%s: a cloned folder has no login folders", tl.Name)
+			}
+		case tool.Launched:
+			if tl.Server == "" || tl.Platform == "" || !strings.HasPrefix(tl.Launcher, "#!/bin/sh\n") {
+				t.Errorf("%s: a launched program needs a server, a platform and a launcher script", tl.Name)
+			}
+			if len(tl.Links) > 0 {
+				t.Errorf("%s: the launcher sets the login folder, so there is no link", tl.Name)
 			}
 		}
 		for _, l := range tl.Links {

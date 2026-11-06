@@ -134,6 +134,26 @@ func TestInstallWritesThePlanAndRunsOneContainer(t *testing.T) {
 	}
 }
 
+// The install script reads the plan line and finds the launcher by the name on it.
+func TestInstallStagesTheLauncherOfALaunchedTool(t *testing.T) {
+	stage := t.TempDir()
+	items := []volume.Item{{Tool: tool.Claude(), Version: "2.1.319", File: "claude.download"}}
+	if _, err := newVolume(&systest.Fake{}).Install(context.Background(), volume.Job{StageDir: stage, Items: items}); err != nil {
+		t.Fatal(err)
+	}
+	plan, _ := os.ReadFile(filepath.Join(stage, "plan"))
+	if want := "launched|claude|2.1.319|claude.download|claude.launcher\n"; string(plan) != want {
+		t.Errorf("plan = %q, want %q (a launched tool has no state link, so no state line)", plan, want)
+	}
+	launcher, err := os.ReadFile(filepath.Join(stage, "claude.launcher"))
+	if err != nil || string(launcher) != tool.Claude().Launcher {
+		t.Errorf("the stage folder lacks the launcher: %v", err)
+	}
+	if info, _ := os.Stat(filepath.Join(stage, "claude.launcher")); info == nil || info.Mode().Perm()&0o100 == 0 {
+		t.Error("the launcher must be runnable")
+	}
+}
+
 func TestInstallWithoutStarterFilesMountsNoSeed(t *testing.T) {
 	fake := &systest.Fake{}
 	if _, err := newVolume(fake).Install(context.Background(), volume.Job{StageDir: t.TempDir()}); err != nil {

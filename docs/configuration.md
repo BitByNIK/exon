@@ -79,16 +79,16 @@ install_plugin_manager = true
 
 ```toml
 [dev]
-tools = ["omp", "gh", "fzf", "eza"]
+tools = ["omp", "claude", "gh", "fzf", "eza"]
 ```
 
 | Key | What it is | Default |
 |---|---|---|
 | `tools` | The tools `exon dev install` and `exon dev update` look after | All of them |
 
-The tools: `omp` (the omp coding agent), `codebase-memory-mcp` (its code index), `gh` (GitHub's
-command line), `fzf` (the fuzzy finder), `eza` (a modern `ls`) and `oh-my-bash` (the shell
-framework). `exon setup` ignores this section.
+The tools: `omp` (the omp coding agent), `claude` (the Claude Code agent), `codebase-memory-mcp`
+(its code index), `gh` (GitHub's command line), `fzf` (the fuzzy finder), `eza` (a modern `ls`) and
+`oh-my-bash` (the shell framework). `exon setup` ignores this section.
 
 ### `[checklist]`
 
@@ -132,6 +132,8 @@ volume doesn't have it yet, so changes made inside a container are kept.
 | In your repo | In the toolbox |
 |---|---|
 | `toolbox/state/omp/agent/config.yml` | omp's settings in every container (`~/.omp/agent/config.yml`) |
+| `toolbox/state/claude/CLAUDE.md` | Claude's instructions for every project, in every container |
+| `toolbox/state/claude/mcp.json` | Claude's MCP servers in every container. The `claude` launcher passes the file to Claude |
 | `toolbox/shell/bashrc` | Your shell settings. Every container's `~/.bashrc` loads it last, so it wins over the image's own |
 | `toolbox/shell/inputrc` | Your readline settings (`~/.inputrc`) |
 

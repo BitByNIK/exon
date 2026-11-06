@@ -66,6 +66,14 @@ func (v Volume) Install(ctx context.Context, job Job) (Outcome, error) {
 	if err := v.FS.WriteFile(filepath.Join(job.StageDir, "install.sh"), []byte(installScript), 0o755); err != nil {
 		return Outcome{}, err
 	}
+	for _, it := range job.Items {
+		if it.Tool.Kind != tool.Launched {
+			continue
+		}
+		if err := v.FS.WriteFile(filepath.Join(job.StageDir, launcherFile(it.Tool.Name)), []byte(it.Tool.Launcher), 0o755); err != nil {
+			return Outcome{}, err
+		}
+	}
 	if job.Container != nil {
 		dir := filepath.Join(job.StageDir, "container")
 		if err := v.FS.MkdirAll(dir, 0o755); err != nil {
@@ -97,6 +105,9 @@ func (v Volume) Install(ctx context.Context, job Job) (Outcome, error) {
 	return out, nil
 }
 
+// launcherFile is the name, inside Job.StageDir, of the launcher script of a Launched tool.
+func launcherFile(name string) string { return name + ".launcher" }
+
 // planText is the plan file the script reads: one line per tool, then one for the container files.
 func planText(items []Item, c *Container) string {
 	var b strings.Builder
@@ -110,6 +121,8 @@ func planText(items []Item, c *Container) string {
 			line("archive", t.Name, it.Version, it.File, t.Member(it.Version))
 		case tool.Clone:
 			line("clone", t.Name, "", t.CloneURL(), "")
+		case tool.Launched:
+			line("launched", t.Name, it.Version, it.File, launcherFile(t.Name))
 		}
 		for _, l := range t.Links {
 			line("state", l.State, "", "", "")

@@ -47,6 +47,7 @@ Like `exon setup`, they show a plan and ask first. `--dry-run` only shows, `--ye
    gh auth login --web --git-protocol https && gh auth setup-git
    git config --global user.name "Your Name" && git config --global user.email you@example.com
    omp   # then /login
+   claude   # then follow the prompt: open the address it prints on your Mac, paste the code back
    ```
 
 `exon dev init` never overwrites a file you changed. Delete one to get a fresh copy.
@@ -55,8 +56,8 @@ Like `exon setup`, they show a plan and ask first. `--dry-run` only shows, `--ye
 
 | In the volume | What it is |
 |---|---|
-| `bin/`, `lib/` | The tools: omp, codebase-memory-mcp, gh, fzf, eza, and oh-my-bash |
-| `state/` | Logins, git identity, settings, omp sessions and code indexes. Private to you |
+| `bin/`, `lib/` | The tools: omp, claude, codebase-memory-mcp, gh, fzf, eza, and oh-my-bash |
+| `state/` | Logins, git identity, settings, omp and Claude sessions and code indexes. Private to you |
 | `shell/` | Your shell settings: `bashrc` and `inputrc` |
 | the rest | What exon needs to manage the toolbox |
 
@@ -64,8 +65,14 @@ When a container is created, its `post-create.sh` runs `/opt/toolbox/init`. That
 login folder (`~/.omp`, `~/.config/gh`, `~/.cache/codebase-memory-mcp`) and `~/.gitconfig` into
 `state/`, puts the tools on `PATH`, loads your shell settings, and links your other projects.
 
+Claude Code has no link. `bin/claude` is a small launcher that starts the program in `lib/claude/`
+with its login, settings and sessions in `state/claude`, so every container shares them. It also
+blocks Claude's own updater, so every container runs the version in the volume: `exon dev update`
+is the one way to change it. If `state/claude/mcp.json` exists, the launcher gives it to Claude as
+its MCP servers; check them with `/mcp` inside Claude (`claude mcp list` does not show them).
+
 Your other projects appear **read-only** at `/workspaces/<name>`: the same path each has in its own
-container, so omp sessions and code indexes line up. The project you opened stays writable.
+container, so omp and Claude sessions and code indexes line up. The project you opened stays writable.
 
 ## Your config repo
 
@@ -96,9 +103,10 @@ exon dev restore ~/Backups/exon/toolbox-2026-10-25_105503.tar.gz
 exon dev install your-name/your-config                           # then: a backup has no tools
 ```
 
-A backup holds what you can't download again: logins, git identity, settings, omp sessions, code
-indexes and your shell settings. It contains login tokens, so only you can read the file. Close
-your omp sessions first for a clean copy; a database being written may be copied half-done.
+A backup holds what you can't download again: logins, git identity, settings, omp and Claude
+sessions, code indexes and your shell settings. It contains login tokens, so only you can read the
+file. Close your omp and Claude sessions first for a clean copy; a database being written may be
+copied half-done.
 
 A restore is checked first and refuses a file that writes outside the toolbox, or over the tools.
 It won't write over a toolbox that already has logins unless you pass `--force`; then files of the
@@ -114,5 +122,6 @@ A Docker reset (or `docker volume rm toolbox`) deletes the volume. Back up befor
   that user, which is what `"updateRemoteUserUID": true` in the generated file does.
 - GitHub allows about 60 version lookups an hour per network without signing in, and a run uses a
   few. At the limit exon says when to try again.
-- Downloads are checked against the checksum GitHub publishes. If GitHub has none for a file, the
-  plan warns and the file is not checked.
+- Downloads are checked against the checksum GitHub publishes, or for Claude the one in Anthropic's
+  manifest. If GitHub has none for a file, the plan warns and the file is not checked. Claude is
+  never installed without one.
