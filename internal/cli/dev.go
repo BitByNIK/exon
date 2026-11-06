@@ -223,12 +223,12 @@ func devBackupCmd() *cobra.Command {
 		Short: "Save the toolbox's logins and settings to a file",
 		Long: `Save the toolbox's logins and settings to a file.
 
-The backup holds what you cannot download again: your logins, settings, omp
-sessions and code indexes, and your shell settings. It does not hold the tools;
+The backup holds what you cannot download again: your logins, settings, omp and
+Claude sessions and code indexes, and your shell settings. It does not hold the tools;
 exon dev install gets those back. The file is for you only (it contains login
 tokens), and goes in ~/Backups/exon unless you say --to.
 
-Close your omp sessions in dev containers first for a clean copy: a database
+Close your omp and Claude sessions in dev containers first for a clean copy: a database
 that is being written may be copied half-done.`,
 		Example: `  exon dev backup
   exon dev backup --to ~/Documents/backups`,

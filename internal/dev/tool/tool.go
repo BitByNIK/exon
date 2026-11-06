@@ -16,6 +16,10 @@ const (
 	Program Kind = iota // one file from a GitHub release, used as it is
 	Archive             // a .tar.gz from a GitHub release that contains the program
 	Clone               // a git repository, cloned into the volume
+	// Launched is a program from the vendor's own release server. The program
+	// goes in lib/<name>/ and a launcher script in bin/<name> starts it, so the
+	// launcher can point the program at its folder in state/<name>.
+	Launched
 )
 
 // Tool is one program or folder in the toolbox volume.
@@ -34,6 +38,14 @@ type Tool struct {
 	Asset func(tag string) string
 	// Member is the path of the program inside the archive. Used by Archive.
 	Member func(tag string) string
+	// Server is the address of the vendor's release server, without a trailing
+	// slash. Used by Launched, which has no GitHub Repo.
+	Server string
+	// Platform is what the server calls the Linux arm64 build, such as
+	// "linux-arm64". Used by Launched.
+	Platform string
+	// Launcher is the script that goes in bin/<name>. Used by Launched.
+	Launcher string
 	// Links are folders in a container's home that keep their content in
 	// the volume, so a login made in one container shows in all of them.
 	Links []Link
@@ -62,7 +74,7 @@ func bare(tag string) string { return strings.TrimPrefix(tag, "v") }
 
 // All returns every tool, in install order.
 func All() []Tool {
-	return []Tool{OMP(), CodebaseMemory(), GH(), FZF(), EZA(), OhMyBash()}
+	return []Tool{OMP(), Claude(), CodebaseMemory(), GH(), FZF(), EZA(), OhMyBash()}
 }
 
 // Find returns the tool with the given name.
