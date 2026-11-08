@@ -17,3 +17,6 @@ __debug_bin*
 
 # agent settings that are only yours (Claude writes this file itself)
 .claude/settings.local.json
+
+# your own dev container, next to the project's: the toolbox volume and your other repos
+.devcontainer/local/
