@@ -25,26 +25,13 @@ Works on **Apple Silicon Macs**. Setting up a Mac needs **Homebrew**; dev contai
 
 ## Quick start
 
-1. Install Homebrew:
+```sh
+brew install bitbynik/tap/exon
+exon setup your-name/your-config
+```
 
-   ```sh
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-   ```
-
-2. Install exon:
-
-   ```sh
-   brew install bitbynik/tap/exon
-   ```
-
-3. Run it with your config repo:
-
-   ```sh
-   exon setup your-name/your-config
-   ```
-
-New here? Read [Getting started](docs/getting-started.md). For dev containers, read
-[Dev containers](docs/dev-containers.md).
+You need Homebrew first and a config repo of your own: [Getting started](docs/getting-started.md) covers both.
+For dev containers, read [Dev containers](docs/dev-containers.md).
 
 ## Docs
 

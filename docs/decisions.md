@@ -82,8 +82,7 @@ release. A pin in the config repo would go stale and need upkeep.
 
 GitHub limits each connection, not the line. In tests one connection ran at about 1 MB/s, and eight at
 once downloaded omp (218 MB) in under a minute. The checksum is the one GitHub itself publishes with
-the release (for Claude, the one in Anthropic's manifest). The container only unpacks and runs git,
-so docker is the only thing that runs on the Mac.
+the release (for Claude, the one in Anthropic's manifest).
 
 ### Other projects are read-only, at their own paths
 
@@ -112,5 +111,9 @@ also refuses paths that leave the toolbox and files written through a link.
 
 ### `init` writes new files and never edits yours
 
-A `devcontainer.json` has comments and its own layout, and patching it is fragile. `exon dev init`
-makes its own file next to the project's, keeps it out of git, and leaves any file you changed alone.
+A `devcontainer.json` has comments and its own layout, and patching it is fragile; it also cannot
+extend another one. So `exon dev init` makes its own folder, `.devcontainer/local/`, next to the
+project's own container, and leaves any file you changed alone. When the project has a
+`.devcontainer/Dockerfile` it builds from it, so the two stay on one image; the settings the two
+files share are repeated, not copied by exon. The folder is ignored through the project's
+`.gitignore`, which contributors share, so nobody commits their own by accident.

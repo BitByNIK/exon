@@ -2,23 +2,30 @@
 
 ## Setup
 
-Development happens in a dev container, so you don't need Go on your Mac.
-Open the repo in an editor that supports dev containers and choose to open it in the container.
-The image (`.devcontainer/Dockerfile`) includes Go and every tool below, at fixed versions.
+You can work in the dev container or directly on your machine.
+
+- **In the container:** open the repo in an editor that supports dev containers and choose to open it in the
+  container. The image (`.devcontainer/Dockerfile`) includes Go and every tool below, at fixed versions, and the
+  container turns the git hook on when it's created.
+- **On your machine:** install Go (the version in `go.mod`) and the tools in that Dockerfile, then run
+  `git config core.hooksPath .githooks`.
+
+A container of your own, for example one with the shared toolbox, goes in `.devcontainer/local/`, which
+git ignores. `exon dev init` makes it: see [Dev containers](docs/dev-containers.md).
 
 ## Everyday commands
 
-Run these in the container:
+Run these in the repo:
 
 | Command | What it does |
 |---|---|
 | `make check` | Everything CI runs: lint, tests, build |
-| `make test` | Tests, with Go's race detector |
-| `make lint` | golangci-lint, and a Markdown check (rumdl) |
+| `make test` | Tests, with Go's race detector (needs cgo). `make test PKG=./internal/step/apps/` runs one package |
+| `make lint` | golangci-lint (`.golangci.yml`), and a Markdown check (rumdl, `.rumdl.toml`) |
 | `make fmt` | Format all Go (gofumpt) and Markdown (rumdl) files |
 | `make build` | Build `bin/exon` for Apple Silicon Macs |
 
-exon only runs on a Mac, not in the container. After `make build`, run it from a Mac terminal:
+exon itself only runs on a Mac, so after `make build` run it from a Mac terminal, not in the Linux container:
 
 ```sh
 ./bin/exon setup ~/Projects/exon-config --dry-run
@@ -45,9 +52,8 @@ Run `exon dev backup` before you try a change to them.
 When you commit, a git hook formats the Go and Markdown files you're committing and adds the
 formatted versions to the commit. Changes you haven't staged are left alone.
 
-The dev container turns the hook on when it's created (`.githooks/pre-commit`, rules in
-`lefthook.yml`). Commit from the container. Anywhere else the hook only prints that formatting
-was skipped; `make lint` and CI catch anything missed.
+The hook (`.githooks/pre-commit`, rules in `lefthook.yml`) needs lefthook, which the dev container has. Without
+lefthook it only prints that formatting was skipped; `make lint` and CI catch anything missed.
 
 ## Branches and pull requests
 
@@ -102,17 +108,16 @@ Pick the number from what changed: new features raise the middle number (`0.2.0`
 bug fixes only raise the last one (`0.2.0` → `0.2.1`).
 
 To see what a release would build without publishing anything, run
-`goreleaser release --snapshot --clean` in the container. It writes to `dist/`, which git ignores.
+`goreleaser release --snapshot --clean` (the dev container has goreleaser). It writes to `dist/`, which git ignores.
 
 Publishing needs the `HOMEBREW_TAP_TOKEN` secret in this repo: a GitHub token allowed to write
 to `BitByNIK/homebrew-tap` only.
 
 ## Coding agents
 
-`AGENTS.md` gives coding agents the project rules; omp and Claude Code both read it. `.omp/` holds
-omp's language server and editor settings. `.claude/settings.json` turns on Claude Code's Go
-language server plugin (`gopls-lsp`) and formats each Go file Claude edits with gofumpt. The
-container already has the tools they use: gopls, golangci-lint-langserver, delve, gofumpt and jq.
+`AGENTS.md` has the project rules for coding agents. omp and Claude Code both read it (Claude through
+`CLAUDE.md`, which imports it), and their settings are in `.omp/` and `.claude/`. The container has the
+tools they use.
 
 ## More
 

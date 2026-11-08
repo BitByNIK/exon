@@ -12,12 +12,11 @@ on the Mac.
 |---|---|
 | `exon dev install SOURCE` | Puts the tools that are missing in the toolbox, plus your starter files |
 | `exon dev update SOURCE [TOOL...]` | Brings tools to a newer version, or to one you choose |
-| `exon dev init [DIR]` | Adds a personal dev container to a project |
+| `exon dev init [DIR]` | Adds your own dev container to a project |
 | `exon dev backup` | Saves your logins and settings to a file |
 | `exon dev restore FILE` | Puts a backup back |
 
-Like `exon setup`, they show a plan and ask first. `--dry-run` only shows, `--yes` doesn't ask,
-`--verbose` shows every command's output.
+Like `exon setup`, they show a plan and ask first, with the same [options](how-it-works.md#options).
 
 ## Set up
 
@@ -29,18 +28,24 @@ Like `exon setup`, they show a plan and ask first. `--dry-run` only shows, `--ye
 
    The first run downloads a small helper image (about 100 MB) and the tools (about 270 MB).
    Tools already in the toolbox are left alone.
-2. In a project folder, add its personal dev container:
+2. In a project folder, add your own dev container:
 
    ```sh
    exon dev init
    ```
 
-   This makes `.devcontainer/personal/devcontainer.json` and `post-create.sh`, and adds them to
-   the project's `.git/info/exclude`, so they are only yours and never committed. A project's own
-   dev container, if it has one, is not touched. `--image` and `--user` start from another image
-   (the default is the Debian dev container image).
-3. Edit them: set the image the project needs, and add the project's own steps to the script.
-4. Open the folder in your editor and choose "personal".
+   This makes `.devcontainer/local/devcontainer.json` and `post-create.sh`, and adds
+   `.devcontainer/local/` to the project's `.gitignore`, so they are only yours. Commit that
+   change. A project's own dev container, if it has one, is not touched.
+
+   - If the project has a `.devcontainer/Dockerfile`, yours is built from it, and your script runs
+     the project's own `.devcontainer/post-create.sh` after the toolbox init.
+   - Otherwise yours starts from an image: the Debian dev container image, or the one you pass with
+     `--image` (and `--user` for the user it runs as).
+3. Edit them. Without a Dockerfile, set the image the project needs. Add your own steps to the
+   script. A `devcontainer.json` cannot extend another one, so repeat the ports, environment
+   variables and `runArgs` you need from the project's own `.devcontainer/devcontainer.json`.
+4. Open the folder in your editor and choose `<project> (local)`.
 5. In any one container, sign in and set your git identity. Every container shares them:
 
    ```sh
@@ -56,7 +61,7 @@ Like `exon setup`, they show a plan and ask first. `--dry-run` only shows, `--ye
 
 | In the volume | What it is |
 |---|---|
-| `bin/`, `lib/` | The tools: omp, claude, codebase-memory-mcp, gh, fzf, eza, and oh-my-bash |
+| `bin/`, `lib/` | The tools (the list is under [`[dev]`](configuration.md#dev)) |
 | `state/` | Logins, git identity, settings, omp and Claude sessions and code indexes. Private to you |
 | `shell/` | Your shell settings: `bashrc` and `inputrc` |
 | the rest | What exon needs to manage the toolbox |
@@ -69,10 +74,11 @@ Claude Code has no link. `bin/claude` is a small launcher that starts the progra
 with its login, settings and sessions in `state/claude`, so every container shares them. It also
 blocks Claude's own updater, so every container runs the version in the volume: `exon dev update`
 is the one way to change it. If `state/claude/mcp.json` exists, the launcher gives it to Claude as
-its MCP servers; check them with `/mcp` inside Claude (`claude mcp list` does not show them).
+its MCP servers; check them with `/mcp` inside Claude (`claude mcp list` does not show them). The
+reasons are in [Decisions](decisions.md).
 
-Your other projects appear **read-only** at `/workspaces/<name>`: the same path each has in its own
-container, so omp and Claude sessions and code indexes line up. The project you opened stays writable.
+Your other projects appear **read-only** at `/workspaces/<name>`, the path each has in its own
+container ([why](decisions.md)). The project you opened stays writable.
 
 ## Your config repo
 
@@ -118,8 +124,8 @@ A Docker reset (or `docker volume rm toolbox`) deletes the volume. Back up befor
 
 - Container images must be **Debian or Ubuntu** (not Alpine) with `git` and `sudo`: the tools are
   built for them.
-- The toolbox belongs to your Mac user ID, because it holds logins. Every container must run as
-  that user, which is what `"updateRemoteUserUID": true` in the generated file does.
+- Every container must run as your Mac user ID, which `"updateRemoteUserUID": true` in the generated
+  file does ([why](decisions.md)).
 - GitHub allows about 60 version lookups an hour per network without signing in, and a run uses a
   few. At the limit exon says when to try again.
 - Downloads are checked against the checksum GitHub publishes, or for Claude the one in Anthropic's

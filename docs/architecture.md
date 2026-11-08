@@ -97,7 +97,7 @@ and `restore` need no config repo, so those commands skip the checks and the fet
 | `dev/release` | The newest or a chosen version of a tool: tag, address and checksum, from GitHub's release data or a vendor's server |
 | `dev/volume` | Everything done to the Docker volume, through the `docker` command |
 | `dev/volume/container/` | The shell scripts that run inside dev containers (`init`, `link-workspaces`), embedded in exon |
-| `dev/project` | The templates for a project's personal dev container files |
+| `dev/project` | The templates for the files of a project's own dev container (`.devcontainer/local/`) |
 | `dev/backup` | What a backup holds, its file name, and the check that a file is safe to restore |
 | `dev/settings` | Reads `[dev]` from `exon.toml` |
 
@@ -110,8 +110,8 @@ flowchart LR
   C --> D[report each tool]
 ```
 
-- **Downloads happen in Go on the Mac** (`sys.Downloader`), several connections at once, because
-  GitHub limits each connection. The container only unpacks, and runs git (so git never runs on the Mac).
+- **Downloads happen in Go on the Mac** (`sys.Downloader`), several connections at once (the reason is in
+  [decisions.md](decisions.md)). The container only unpacks, and runs git (so git never runs on the Mac).
   A tool from its vendor's own server (Claude) is looked up and downloaded the same way; its
   checksum comes from the server's manifest (`dev/release/server.go`).
 - **Downloads use HTTP/1.1 only.** HTTP/2 would put all the pieces of a file on one connection.
@@ -135,7 +135,7 @@ flowchart LR
 2. Add it to `All()` in `tool.go`, in install order.
 3. Add its real file names to `TestAssetNames`, checked against the release. A `Launched` tool
    is covered by the release tests against the server's manifest instead.
-4. Add it to the tool lists in [configuration.md](configuration.md) and [dev-containers.md](dev-containers.md).
+4. Add it to the tool list under `[dev]` in [configuration.md](configuration.md).
 
 The plan, `init` and the install script work from the `Tool` data, so they need no change for the
 first three kinds. A new kind needs its own case in `release`, `volume/install.go` and `install.sh`.
