@@ -1,5 +1,22 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(make check)",
+      "Bash(make test)",
+      "Bash(make lint)",
+      "Bash(make fmt)",
+      "Bash(make build)",
+      "Bash(make tidy)",
+      "Bash(make clean)",
+      "Bash(go test *)",
+      "Bash(go vet *)",
+      "Bash(go build *)",
+      "Bash(golangci-lint run *)",
+      "Bash(gofumpt *)",
+      "Bash(rumdl *)"
+    ]
+  },
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true
   },
