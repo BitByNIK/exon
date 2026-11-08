@@ -9,9 +9,10 @@ LDFLAGS := -s -w -X github.com/bitbynik/exon/internal/cli.version=$(VERSION)
 build:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags '$(LDFLAGS)' -o bin/exon ./cmd/exon
 
-## test: unit tests with the race detector (needs cgo; only the release build is cgo-free)
+## test: unit tests with the race detector (needs cgo; only the release build is cgo-free). PKG=./internal/step/apps/ runs one package
+PKG ?= ./...
 test:
-	CGO_ENABLED=1 go test -race ./...
+	CGO_ENABLED=1 go test -race $(PKG)
 
 ## lint: golangci-lint, and check Markdown formatting
 lint:

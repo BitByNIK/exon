@@ -1,4 +1,4 @@
-# Git hooks, run by .githooks/pre-commit inside the dev container.
+# Git hooks, run by .githooks/pre-commit.
 # Before each commit, format the staged Go and Markdown files and add the
 # formatted versions to the commit.
 

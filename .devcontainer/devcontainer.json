@@ -1,3 +1,5 @@
+// Dev container for exon. Your own variant, with the toolbox and your other projects, goes in the
+// git-ignored .devcontainer/local/: `exon dev init` makes it.
 {
   "name": "exon",
   "build": { "dockerfile": "Dockerfile" },
