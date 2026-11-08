@@ -96,16 +96,21 @@ func devInitCmd() *cobra.Command {
 	var f devInitFlags
 	cmd := &cobra.Command{
 		Use:   "init [DIR]",
-		Short: "Add a personal dev container to a project",
-		Long: `Add a personal dev container to a project.
+		Short: "Add your own dev container to a project",
+		Long: `Add your own dev container to a project.
 
 DIR is the project folder (the current folder if left out). Two files are made
-in .devcontainer/personal/: a devcontainer.json that uses the toolbox volume,
-and a post-create.sh that runs once when the container is created. A line in
-the project's .git/info/exclude keeps them out of git, so they are only yours.
+in .devcontainer/local/: a devcontainer.json that uses the toolbox volume, and
+a post-create.sh that runs once when the container is created. The line
+.devcontainer/local/ is added to the project's .gitignore, so they are only
+yours; commit that change.
 
-Edit them afterwards: set the image the project needs, and add its own steps
-to the script. Files that already exist are never overwritten.`,
+If the project has a .devcontainer/Dockerfile, your container is built from it,
+and your post-create.sh runs the project's own .devcontainer/post-create.sh.
+Otherwise it starts from --image.
+
+Edit the files afterwards, and add your own steps to the script. Files that
+already exist are never overwritten.`,
 		Example: `  exon dev init
   exon dev init ~/Projects/api --image mcr.microsoft.com/devcontainers/typescript-node:22-bookworm --user node`,
 		Args: cobra.MaximumNArgs(1),
@@ -124,7 +129,7 @@ to the script. Files that already exist are never overwritten.`,
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&f.image, "image", project.DefaultImage, "the container image (Debian or Ubuntu, with git and sudo)")
+	cmd.Flags().StringVar(&f.image, "image", "", "the container image, Debian or Ubuntu with git and sudo (default: the project's Dockerfile if it has one, else "+project.DefaultImage+")")
 	cmd.Flags().StringVar(&f.user, "user", project.DefaultUser, "the user that image runs as")
 	cmd.Flags().BoolVar(&f.dryRun, "dry-run", false, "show what would change, change nothing")
 	cmd.Flags().BoolVarP(&f.yes, "yes", "y", false, "don't ask for confirmation")

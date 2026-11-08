@@ -1,10 +1,15 @@
 #!/bin/sh
-# Runs once, when the dev container for {{.Name}} is created. Made by `exon dev init`.
+# Runs once, when your dev container for {{.Name}} is created. Made by `exon dev init`.
 set -eu
 
 # Links the toolbox into this container: your tools, their logins and your shell settings.
 # Keep this first.
 {{.MountPoint}}/init
+{{- if .ProjectScript}}
+
+# The project's own setup.
+"$(dirname "$0")/../post-create.sh"
+{{- end}}
 
 # Your own steps for this project go below, one command per line. For example:
 #   sudo apt-get update && sudo apt-get install -y --no-install-recommends make

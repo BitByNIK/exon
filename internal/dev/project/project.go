@@ -1,6 +1,6 @@
-// Package project makes the personal dev container files for a project:
-// a devcontainer.json that uses the shared toolbox volume, and the script
-// that runs once when the container is created.
+// Package project makes the files of a project's own dev container: a
+// devcontainer.json that uses the shared toolbox volume, and the script that
+// runs once when the container is created.
 package project
 
 import (
@@ -23,11 +23,11 @@ const (
 	DefaultUser  = "vscode" // the user that image runs as
 )
 
-// Dir is the folder, inside the project, that holds the personal files.
-const Dir = ".devcontainer/personal"
+// Dir is the folder, inside the project, that holds the files.
+const Dir = ".devcontainer/local"
 
-// ExcludeLine keeps the personal files out of git.
-const ExcludeLine = Dir + "/"
+// IgnoreLine is the line for the project's .gitignore that keeps the files out of git.
+const IgnoreLine = Dir + "/"
 
 //go:embed devcontainer.json.tmpl
 var devcontainerTmpl string
@@ -37,11 +37,16 @@ var postCreateTmpl string
 
 // Options are what the files are made from.
 type Options struct {
-	Name        string // the project's folder name
-	Image       string
-	User        string
-	ProjectsDir string // where the Mac's projects are, as devcontainer.json should say it
+	Name          string // the project's folder name
+	Image         string // used when the project has no Dockerfile of its own
+	User          string
+	ProjectsDir   string // where the Mac's projects are, as devcontainer.json should say it
+	Dockerfile    bool   // build from the project's .devcontainer/Dockerfile instead of Image
+	ProjectScript bool   // the project has a .devcontainer/post-create.sh, which the script runs
 }
+
+// Label is the name the editor shows when it asks which dev container to open.
+func Label(name string) string { return name + " (local)" }
 
 // File is one file to create, with a path relative to the project folder.
 type File struct {
@@ -54,8 +59,8 @@ type File struct {
 func Files(o Options) ([]File, error) {
 	data := struct {
 		Options
-		Volume, MountPoint string
-	}{o, volume.DefaultName, volume.MountPoint}
+		Volume, MountPoint, Label string
+	}{o, volume.DefaultName, volume.MountPoint, Label(o.Name)}
 
 	devcontainer, err := render("devcontainer.json", devcontainerTmpl, data)
 	if err != nil {

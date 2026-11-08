@@ -1,11 +1,20 @@
-// Personal dev container for {{.Name}}, made by `exon dev init`. It sits next to the project's own
-// .devcontainer/devcontainer.json, if there is one, without touching it, and is kept out of git.
-// In Zed, choose "personal" when it asks which dev container to open.
+// Your own dev container for {{.Name}}, made by `exon dev init`. It sits next to the project's own
+// .devcontainer/devcontainer.json, if there is one, without touching it, and git ignores it.
+// In Zed, choose "{{.Label}}" when it asks which dev container to open.
+// A devcontainer.json cannot extend another one, so repeat here what you need from
+// ../devcontainer.json: ports, environment variables and runArgs.
 {
-  "name": {{json (printf "%s (personal)" .Name)}},
+  "name": {{json .Label}},
+{{- if .Dockerfile}}
+  // The project's own image, built from its Dockerfile. This file is one folder deeper than
+  // .devcontainer/devcontainer.json, so the path starts with "../" and the build context is the
+  // .devcontainer folder ("..").
+  "build": { "dockerfile": "../Dockerfile", "context": ".." },
+{{- else}}
   // Change the image to what the project needs. It must be Debian or Ubuntu (not Alpine) with git
   // and sudo: the toolbox programs are built for them.
   "image": {{json .Image}},
+{{- end}}
   "remoteUser": {{json .User}},
   // Gives that user your Mac's user ID, so it can use the toolbox volume, which is private to you.
   "updateRemoteUserUID": true,
@@ -19,5 +28,5 @@
   },
   // One script path on purpose: Zed runs only the first word of a longer command. Your own
   // steps go in the script.
-  "postCreateCommand": "./.devcontainer/personal/post-create.sh"
+  "postCreateCommand": "./.devcontainer/local/post-create.sh"
 }
